@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<!--
+  AWS構成図クイズ - メインUI
+  作成者: Sekimoto Naoto
+  作成日: 2026-04-24
+  説明: AWS構成図を見てユースケースを当てる逆引き形式のクイズアプリ（静的HTML / PWA対応）
+-->
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#FF9900" />
+  <meta name="description" content="AWS構成図からユースケースを当てるクイズアプリ" />
+  <title>AWS構成図クイズ</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    /* =============================================
+       CSS リセット & 基本設定
+    ============================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --aws-orange: #FF9900;
+      --aws-orange-dark: #e68a00;
+      --aws-navy: #232f3e;
+      --aws-navy-light: #2d3f52;
+      --aws-navy-mid: #1b2733;
+      --diagram-bg: #1e293b;
+      --diagram-border: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --bg-card: #1e2a35;
+      --bg-screen: #0f172a;
+      --correct-green: #22c55e;
+      --correct-bg: #052e16;
+      --wrong-red: #ef4444;
+      --wrong-bg: #450a0a;
+      --level-basic: #22c55e;
+      --level-intermediate: #3b82f6;
+      --level-advanced: #a855f7;
+      --border-color: #334155;
+      --radius: 10px;
+      --radius-lg: 16px;
+    }
+
+    html {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-screen);
+      color: var(--text-primary);
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px 12px 40px;
+    }
+
+    /* =============================================
+       メインコンテナ
+    ============================================= */
+    #app {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    /* =============================================
+       スクリーン共通（表示・非表示）
+    ============================================= */
+    .screen {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .screen.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* =============================================
+       スタート画面
+    ============================================= */
+    .start-header {
+      text-align: center;
+      padding: 32px 0 24px;
+    }
+    .start-logo {
+      font-size: 3rem;
+      line-height: 1;
+    }
+    .start-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--aws-orange);
+      margin-top: 12px;
+      letter-spacing: -0.5px;
+    }
+    .start-subtitle {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .level-section {
+      margin-top: 24px;
+    }
+    .level-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      padding-left: 4px;
+    }
+
+    .level-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .level-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 16px 14px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+      text-align: center;
+    }
+    .level-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .level-card.all {
+      grid-column: 1 / -1;
+      border-color: var(--aws-orange);
+    }
+    .level-card.all:hover {
+      background: rgba(255,153,0,0.08);
+    }
+    .level-card.basic:hover   { border-color: var(--level-basic); }
+    .level-card.intermediate:hover { border-color: var(--level-intermediate); }
+    .level-card.advanced:hover { border-color: var(--level-advanced); }
+
+    .level-card-icon {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+    .level-card-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .level-card.all .level-card-name { color: var(--aws-orange); }
+    .level-card.basic .level-card-name { color: var(--level-basic); }
+    .level-card.intermediate .level-card-name { color: var(--level-intermediate); }
+    .level-card.advanced .level-card-name { color: var(--level-advanced); }
+
+    .level-card-count {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .start-tip {
+      margin-top: 24px;
+      background: rgba(255,153,0,0.07);
+      border: 1px solid rgba(255,153,0,0.2);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .start-tip strong {
+      color: var(--aws-orange);
+    }
+
+    /* =============================================
+       クイズ画面
+    ============================================= */
+    .quiz-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0 16px;
+      gap: 12px;
+    }
+    .quiz-back-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .quiz-back-btn:hover {
+      border-color: var(--aws-orange);
+      color: var(--aws-orange);
+    }
+    .quiz-progress-info {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .progress-bar-wrap {
+      height: 6px;
+      background: var(--aws-navy-light);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--aws-orange), #ffb84d);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    .quiz-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .quiz-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .level-badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 99px;
+    }
+    .level-badge.basic {
+      background: rgba(34,197,94,0.15);
+      color: var(--level-basic);
+    }
+    .level-badge.intermediate {
+      background: rgba(59,130,246,0.15);
+      color: var(--level-intermediate);
+    }
+    .level-badge.advanced {
+      background: rgba(168,85,247,0.15);
+      color: var(--level-advanced);
+    }
+
+    .quiz-card-qno {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    .diagram-area {
+      background: var(--diagram-bg);
+      border-bottom: 1px solid var(--diagram-border);
+      padding: 16px;
+    }
+    .diagram-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--aws-orange);
+      margin-bottom: 10px;
+    }
+    .diagram-content {
+      font-family: 'Consolas', 'Courier New', 'SF Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: #e2e8f0;
+      white-space: pre;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .quiz-body {
+      padding: 16px;
+    }
+    .quiz-question {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .choice-btn {
+      width: 100%;
+      text-align: left;
+      background: var(--aws-navy-mid);
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      line-height: 1.5;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    }
+    .choice-btn:hover:not(:disabled) {
+      border-color: var(--aws-orange);
+      background: rgba(255,153,0,0.08);
+      transform: translateX(2px);
+    }
+    .choice-btn:disabled {
+      cursor: default;
+    }
+    .choice-btn.correct {
+      border-color: var(--correct-green);
+      background: var(--correct-bg);
+      color: #86efac;
+    }
+    .choice-btn.wrong {
+      border-color: var(--wrong-red);
+      background: var(--wrong-bg);
+      color: #fca5a5;
+    }
+    .choice-btn.dimmed {
+      opacity: 0.4;
+    }
+
+    /* 解説パネル */
+    .explanation-panel {
+      display: none;
+      margin-top: 16px;
+      background: rgba(255,153,0,0.06);
+      border: 1px solid rgba(255,153,0,0.25);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      animation: fadeIn 0.3s ease;
+    }
+    .explanation-panel.show {
+      display: block;
+    }
+    .explanation-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: var(--aws-orange);
+      margin-bottom: 8px;
+    }
+    .explanation-text {
+      font-size: 0.84rem;
+      color: #cbd5e1;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    /* 次へボタン */
+    .next-btn {
+      display: none;
+      width: 100%;
+      margin-top: 14px;
+      background: var(--aws-orange);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 14px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .next-btn:hover {
+      background: var(--aws-orange-dark);
+      transform: translateY(-1px);
+    }
+    .next-btn.show {
+      display: block;
+    }
+
+    /* =============================================
+       結果画面
+    ============================================= */
+    .result-header {
+      text-align: center;
+      padding: 32px 0 20px;
+    }
+    .result-emoji {
+      font-size: 3.5rem;
+    }
+    .result-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--aws-orange);
+      margin-top: 12px;
+    }
+    .result-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 6px;
+    }
+
+    .score-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-top: 16px;
+      text-align: center;
+    }
+    .score-main {
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: var(--aws-orange);
+      line-height: 1;
+    }
+    .score-denom {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+    }
+    .score-label {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-top: 6px;
+    }
+
+    .score-bar-wrap {
+      margin-top: 16px;
+      height: 10px;
+      background: var(--aws-navy-light);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--aws-orange), #ffb84d);
+      transition: width 1s ease;
+    }
+
+    .level-breakdown {
+      margin-top: 20px;
+    }
+    .breakdown-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .breakdown-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .breakdown-label {
+      width: 100px;
+      font-size: 0.78rem;
+    }
+    .breakdown-bar-wrap {
+      flex: 1;
+      height: 8px;
+      background: var(--aws-navy-light);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .breakdown-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 1s ease 0.3s;
+    }
+    .breakdown-bar-fill.basic { background: var(--level-basic); }
+    .breakdown-bar-fill.intermediate { background: var(--level-intermediate); }
+    .breakdown-bar-fill.advanced { background: var(--level-advanced); }
+    .breakdown-score {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .result-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    .result-btn {
+      width: 100%;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 14px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .result-btn:hover {
+      transform: translateY(-1px);
+    }
+    .result-btn.primary {
+      background: var(--aws-orange);
+      border: none;
+      color: #fff;
+    }
+    .result-btn.primary:hover { background: var(--aws-orange-dark); }
+    .result-btn.secondary {
+      background: transparent;
+      border: 1.5px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+    .result-btn.secondary:hover {
+      border-color: var(--aws-orange);
+      color: var(--aws-orange);
+    }
+
+    /* =============================================
+       スクロールバー（ダーク）
+    ============================================= */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--diagram-bg); }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 99px; }
+
+    /* =============================================
+       レスポンシブ微調整
+    ============================================= */
+    @media (max-width: 360px) {
+      .start-title { font-size: 1.35rem; }
+      .diagram-content { font-size: 0.78rem; }
+      .choice-btn { font-size: 0.83rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ==================== スタート画面 ==================== -->
+    <div id="screen-start" class="screen active">
+      <div class="start-header">
+        <div class="start-logo">🏗️</div>
+        <div class="start-title">AWS 構成図クイズ</div>
+        <div class="start-subtitle">構成図を見てユースケースを当てよう！<br>AWSアーキテクチャパターンを身体に染み込ませる</div>
+      </div>
+
+      <div class="level-section">
+        <div class="level-section-title">レベルを選択</div>
+        <div class="level-cards">
+          <div class="level-card all" onclick="startQuiz('all')">
+            <div class="level-card-icon">🌐</div>
+            <div class="level-card-name">すべて</div>
+            <div class="level-card-count">全 30 問</div>
+          </div>
+          <div class="level-card basic" onclick="startQuiz('basic')">
+            <div class="level-card-icon">🟢</div>
+            <div class="level-card-name">BASIC</div>
+            <div class="level-card-count">10 問</div>
+          </div>
+          <div class="level-card intermediate" onclick="startQuiz('intermediate')">
+            <div class="level-card-icon">🔵</div>
+            <div class="level-card-name">INTERMEDIATE</div>
+            <div class="level-card-count">12 問</div>
+          </div>
+          <div class="level-card advanced" onclick="startQuiz('advanced')">
+            <div class="level-card-icon">🟣</div>
+            <div class="level-card-name">ADVANCED</div>
+            <div class="level-card-count">8 問</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="start-tip">
+        <strong>ルール：</strong>構成図を読んで、最もあてはまるユースケースを選ぼう。
+        正解後に表示される解説で「なぜそのアーキテクチャか」を理解することが大事！
+      </div>
+    </div>
+
+    <!-- ==================== クイズ画面 ==================== -->
+    <div id="screen-quiz" class="screen">
+      <div class="quiz-topbar">
+        <button class="quiz-back-btn" onclick="goToStart()">← 戻る</button>
+        <div class="quiz-progress-info" id="progress-info">1 / 10</div>
+      </div>
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+      </div>
+
+      <div class="quiz-card">
+        <div class="quiz-card-header">
+          <span class="level-badge" id="q-level-badge">BASIC</span>
+          <span class="quiz-card-qno" id="q-no">Q1</span>
+        </div>
+
+        <div class="diagram-area">
+          <div class="diagram-label">▸ 構成図</div>
+          <pre class="diagram-content" id="q-diagram"></pre>
+        </div>
+
+        <div class="quiz-body">
+          <div class="quiz-question" id="q-question"></div>
+          <div class="choices" id="q-choices"></div>
+
+          <div class="explanation-panel" id="explanation-panel">
+            <div class="explanation-title">💡 解説</div>
+            <div class="explanation-text" id="explanation-text"></div>
+          </div>
+
+          <button class="next-btn" id="next-btn" onclick="nextQuestion()">
+            次の問題へ →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 結果画面 ==================== -->
+    <div id="screen-result" class="screen">
+      <div class="result-header">
+        <div class="result-emoji" id="result-emoji">🎉</div>
+        <div class="result-title" id="result-title">クイズ完了！</div>
+        <div class="result-subtitle" id="result-subtitle">お疲れ様でした</div>
+      </div>
+
+      <div class="score-card">
+        <div>
+          <span class="score-main" id="score-correct">0</span>
+          <span class="score-denom" id="score-total"> / 0</span>
+        </div>
+        <div class="score-label" id="score-pct">正答率 0%</div>
+        <div class="score-bar-wrap" style="margin-top:14px;">
+          <div class="score-bar-fill" id="score-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="level-breakdown" id="level-breakdown"></div>
+
+      <div class="result-actions">
+        <button class="result-btn primary" id="retry-btn" onclick="retryQuiz()">
+          もう一度挑戦
+        </button>
+        <button class="result-btn secondary" onclick="goToStart()">
+          レベルを変える
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /#app -->
+
+  <!-- 問題データ読み込み -->
+  <script src="questions.js"></script>
+
+  <script>
+    /**
+     * AWS構成図クイズ - メインロジック
+     * 作成者: Sekimoto Naoto
+     * 作成日: 2026-04-24
+     */
+
+    // =============================================
+    // 状態管理
+    // =============================================
+    let state = {
+      selectedLevel: 'all',
+      questions: [],
+      currentIndex: 0,
+      correctCount: 0,
+      answered: false,
+      // レベル別の正答記録
+      levelStats: { basic: [0, 0], intermediate: [0, 0], advanced: [0, 0] }
+    };
+
+    // =============================================
+    // スクリーン切り替え
+    // =============================================
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      document.getElementById('screen-' + id).classList.add('active');
+    }
+
+    function goToStart() {
+      showScreen('start');
+    }
+
+    // =============================================
+    // クイズ開始
+    // =============================================
+    function startQuiz(level) {
+      state.selectedLevel = level;
+      state.questions = level === 'all'
+        ? [...QUESTIONS]
+        : QUESTIONS.filter(q => q.level === level);
+
+      // シャッフル
+      for (let i = state.questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [state.questions[i], state.questions[j]] = [state.questions[j], state.questions[i]];
+      }
+
+      state.currentIndex = 0;
+      state.correctCount = 0;
+      state.levelStats = { basic: [0, 0], intermediate: [0, 0], advanced: [0, 0] };
+
+      showScreen('quiz');
+      renderQuestion();
+    }
+
+    function retryQuiz() {
+      startQuiz(state.selectedLevel);
+    }
+
+    // =============================================
+    // 問題レンダリング
+    // =============================================
+    function renderQuestion() {
+      const q = state.questions[state.currentIndex];
+      const total = state.questions.length;
+      const idx = state.currentIndex;
+      state.answered = false;
+
+      // 進捗
+      document.getElementById('progress-info').textContent = `${idx + 1} / ${total}`;
+      const pct = (idx / total) * 100;
+      document.getElementById('progress-bar').style.width = pct + '%';
+
+      // カードヘッダー
+      const badge = document.getElementById('q-level-badge');
+      badge.textContent = LEVEL_LABEL[q.level];
+      badge.className = 'level-badge ' + q.level;
+      document.getElementById('q-no').textContent = `Q${q.id}`;
+
+      // 構成図
+      document.getElementById('q-diagram').textContent = q.diagram;
+
+      // 質問文
+      document.getElementById('q-question').textContent = q.question;
+
+      // 選択肢
+      const choicesEl = document.getElementById('q-choices');
+      choicesEl.innerHTML = '';
+      q.choices.forEach((choice, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = choice;
+        btn.onclick = () => handleAnswer(btn, choice.charAt(0), q);
+        choicesEl.appendChild(btn);
+      });
+
+      // 解説・次へ ボタンをリセット
+      document.getElementById('explanation-panel').classList.remove('show');
+      document.getElementById('next-btn').classList.remove('show');
+    }
+
+    const LEVEL_LABEL = {
+      basic: 'BASIC',
+      intermediate: 'INTERMEDIATE',
+      advanced: 'ADVANCED'
+    };
+
+    // =============================================
+    // 回答処理
+    // =============================================
+    function handleAnswer(clickedBtn, selected, q) {
+      if (state.answered) return;
+      state.answered = true;
+
+      const isCorrect = selected === q.answer;
+      const level = q.level;
+
+      // レベル統計更新
+      state.levelStats[level][1]++;
+      if (isCorrect) {
+        state.correctCount++;
+        state.levelStats[level][0]++;
+      }
+
+      // ボタンのスタイル変更
+      const allBtns = document.querySelectorAll('.choice-btn');
+      allBtns.forEach(btn => {
+        btn.disabled = true;
+        const letter = btn.textContent.charAt(0);
+        if (letter === q.answer) {
+          btn.classList.add('correct');
+        } else if (letter === selected && !isCorrect) {
+          btn.classList.add('wrong');
+        } else {
+          btn.classList.add('dimmed');
+        }
+      });
+
+      // 解説表示
+      document.getElementById('explanation-text').textContent = q.explanation;
+      document.getElementById('explanation-panel').classList.add('show');
+
+      // 次へボタン or 結果画面へ
+      const nextBtn = document.getElementById('next-btn');
+      if (state.currentIndex < state.questions.length - 1) {
+        nextBtn.textContent = '次の問題へ →';
+        nextBtn.classList.add('show');
+      } else {
+        nextBtn.textContent = '結果を見る';
+        nextBtn.classList.add('show');
+      }
+    }
+
+    // =============================================
+    // 次の問題 / 結果
+    // =============================================
+    function nextQuestion() {
+      if (state.currentIndex < state.questions.length - 1) {
+        state.currentIndex++;
+        renderQuestion();
+        // スクロールをトップへ
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        showResult();
+      }
+    }
+
+    // =============================================
+    // 結果画面
+    // =============================================
+    function showResult() {
+      const total = state.questions.length;
+      const correct = state.correctCount;
+      const pct = Math.round((correct / total) * 100);
+
+      // 絵文字・メッセージ
+      let emoji, title, subtitle;
+      if (pct === 100) {
+        emoji = '🏆'; title = '完璧！満点達成！'; subtitle = 'AWSアーキテクチャマスター！';
+      } else if (pct >= 80) {
+        emoji = '🎉'; title = '素晴らしい！'; subtitle = 'AWSの構成パターンをよく理解できています';
+      } else if (pct >= 60) {
+        emoji = '👍'; title = 'なかなかいい感じ！'; subtitle = '解説を読んで苦手パターンを復習しよう';
+      } else if (pct >= 40) {
+        emoji = '📚'; title = 'まだまだこれから！'; subtitle = 'AWSサービスの役割を整理して再挑戦しよう';
+      } else {
+        emoji = '💪'; title = '次は頑張ろう！'; subtitle = '解説をじっくり読んでからリトライ！';
+      }
+
+      document.getElementById('result-emoji').textContent = emoji;
+      document.getElementById('result-title').textContent = title;
+      document.getElementById('result-subtitle').textContent = subtitle;
+      document.getElementById('score-correct').textContent = correct;
+      document.getElementById('score-total').textContent = ' / ' + total;
+      document.getElementById('score-pct').textContent = `正答率 ${pct}%`;
+
+      // スコアバーはアニメーションのため少し遅らせて設定
+      setTimeout(() => {
+        document.getElementById('score-bar').style.width = pct + '%';
+      }, 100);
+
+      // レベル別内訳
+      const bdEl = document.getElementById('level-breakdown');
+      const levelDefs = [
+        { key: 'basic', label: 'BASIC', cls: 'basic' },
+        { key: 'intermediate', label: 'INTERMEDIATE', cls: 'intermediate' },
+        { key: 'advanced', label: 'ADVANCED', cls: 'advanced' }
+      ];
+      let bdHTML = '<div class="breakdown-title">レベル別 正答率</div>';
+      let hasAny = false;
+      levelDefs.forEach(({ key, label, cls }) => {
+        const [c, t] = state.levelStats[key];
+        if (t === 0) return;
+        hasAny = true;
+        const p = Math.round((c / t) * 100);
+        bdHTML += `
+          <div class="breakdown-row">
+            <div class="breakdown-label">
+              <span class="level-badge ${cls}">${label}</span>
+            </div>
+            <div class="breakdown-bar-wrap">
+              <div class="breakdown-bar-fill ${cls}" style="width:0%" data-target="${p}"></div>
+            </div>
+            <div class="breakdown-score">${c}/${t} (${p}%)</div>
+          </div>`;
+      });
+      bdEl.innerHTML = hasAny ? bdHTML : '';
+
+      // もう一度ボタンのラベル
+      const retryLevel = state.selectedLevel === 'all' ? '全問' :
+        ({ basic: 'BASIC', intermediate: 'INTERMEDIATE', advanced: 'ADVANCED' }[state.selectedLevel]);
+      document.getElementById('retry-btn').textContent = `もう一度挑戦（${retryLevel}）`;
+
+      showScreen('result');
+
+      // breakdown バーをアニメーション
+      setTimeout(() => {
+        document.querySelectorAll('.breakdown-bar-fill').forEach(el => {
+          el.style.width = el.dataset.target + '%';
+        });
+      }, 200);
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // =============================================
+    // PWA Service Worker 登録
+    // =============================================
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('SW registered:', reg.scope))
+          .catch(err => console.warn('SW registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>

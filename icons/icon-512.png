@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#232f3e"/>
+  <rect x="40" y="40" width="432" height="432" rx="56" fill="#FF9900" opacity="0.12"/>
+  <!-- 大版 アーキテクチャアイコン -->
+  <!-- 上段 -->
+  <rect x="166" y="60" width="180" height="68" rx="14" fill="#FF9900"/>
+  <text x="256" y="102" text-anchor="middle" font-family="monospace" font-size="26" fill="#232f3e" font-weight="bold">Route53</text>
+  <!-- 矢印1 -->
+  <line x1="256" y1="128" x2="256" y2="168" stroke="#FF9900" stroke-width="5"/>
+  <polygon points="256,168 242,150 270,150" fill="#FF9900"/>
+  <!-- 中段 -->
+  <rect x="146" y="168" width="220" height="68" rx="14" fill="#FF9900"/>
+  <text x="256" y="210" text-anchor="middle" font-family="monospace" font-size="26" fill="#232f3e" font-weight="bold">CloudFront</text>
+  <!-- 矢印2 -->
+  <line x1="256" y1="236" x2="256" y2="276" stroke="#FF9900" stroke-width="5"/>
+  <polygon points="256,276 242,258 270,258" fill="#FF9900"/>
+  <!-- S3 -->
+  <rect x="126" y="276" width="260" height="68" rx="14" fill="#FF9900"/>
+  <text x="256" y="318" text-anchor="middle" font-family="monospace" font-size="24" fill="#232f3e" font-weight="bold">S3 Static Site</text>
+  <!-- 分岐矢印 -->
+  <line x1="256" y1="344" x2="140" y2="390" stroke="#FF9900" stroke-width="4" stroke-dasharray="10,5"/>
+  <line x1="256" y1="344" x2="372" y2="390" stroke="#FF9900" stroke-width="4" stroke-dasharray="10,5"/>
+  <!-- Lambda -->
+  <rect x="60" y="390" width="160" height="54" rx="12" fill="#2d3f52" stroke="#FF9900" stroke-width="3"/>
+  <text x="140" y="422" text-anchor="middle" font-family="monospace" font-size="20" fill="#FF9900" font-weight="bold">Lambda</text>
+  <!-- DynamoDB -->
+  <rect x="292" y="390" width="160" height="54" rx="12" fill="#2d3f52" stroke="#FF9900" stroke-width="3"/>
+  <text x="372" y="422" text-anchor="middle" font-family="monospace" font-size="17" fill="#FF9900" font-weight="bold">DynamoDB</text>
+</svg>
