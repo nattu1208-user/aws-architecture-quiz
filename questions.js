@@ -147,15 +147,15 @@ const QUESTIONS = [
     ↓
 [Lambda]
 `,
-    question: 'この構成図のユースケースとして最も適切なものはどれか？',
+    question: 'この構成のアクセス制御の仕組みとして、最も正確な説明はどれか？',
     choices: [
-      'A. Cognito認証で保護されたサーバーレスAPIの提供',
-      'B. CDNエッジでのSSL/TLS終端処理',
-      'C. S3バケット間のクロスリージョンデータ複製',
-      'D. ECSコンテナの自動スケーリング制御'
+      'A. API GatewayはCognitoが発行したJWTの署名・有効期限をローカルで検証し、正当なリクエストのみLambdaに転送する',
+      'B. CognitoがリクエストごとにLambdaの実行IAMロールを切り替え、ユーザーごとにAWSリソースへのアクセス権限を制御する',
+      'C. API Gatewayはリクエストのたびにcognito-idp APIを呼び出してトークンの有効性をリアルタイム検証する',
+      'D. LambdaがCognito User Poolに直接問い合わせてユーザー属性を確認し、アクセス可否を自ら判断する'
     ],
     answer: 'A',
-    explanation: '【正解: A】Cognitoでユーザー認証・JWT発行 → API GatewayがJWTを検証して不正リクエストを弾く → Lambdaで実際の処理を行う「認証付きサーバーレスAPI」の定番パターン。\n\n【Bが違う理由】SSL終端はCloudFront/ELBが担当する。\n【Cが違う理由】S3レプリケーションはS3の設定機能で完結する。\n【Dが違う理由】ECSスケーリングはAuto Scaling/Application Auto Scalingが行う。'
+    explanation: '【正解: A】API GatewayのCognitoオーソライザーはJWTの署名と有効期限をローカルで検証する。Cognitoへの都度問い合わせは不要で、高速かつスケーラブルに機能する。\n\n【Bが違う理由】IAMロールの動的付与はCognito Identity Pool（フェデレーテッドID）の機能。User Poolはエンドユーザー認証が目的であり、AWSリソースへの権限付与は行わない。\n【Cが違う理由】API Gatewayはローカルでの署名検証のためCognitoへのリアルタイム問い合わせは行わない。その結果、トークン失効の即時反映が難しいというトレードオフがある。\n【Dが違う理由】アクセス制御の責務はAPI Gatewayオーソライザーにある。LambdaがUser Poolを直接参照してアクセス判断する設計は責務が混在し、セキュリティリスクになる。'
   },
   {
     id: 8,
