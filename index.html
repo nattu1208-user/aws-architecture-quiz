@@ -566,34 +566,34 @@
       </div>
 
       <div class="level-section">
-        <div class="level-section-title">レベルを選択</div>
+        <div class="level-section-title">レベルを選択（5問ランダム出題）</div>
         <div class="level-cards">
           <div class="level-card all" onclick="startQuiz('all')">
             <div class="level-card-icon">🌐</div>
             <div class="level-card-name">すべて</div>
-            <div class="level-card-count">全 30 問</div>
+            <div class="level-card-count" id="count-all">— 問</div>
           </div>
           <div class="level-card basic" onclick="startQuiz('basic')">
             <div class="level-card-icon">🟢</div>
             <div class="level-card-name">BASIC</div>
-            <div class="level-card-count">10 問</div>
+            <div class="level-card-count" id="count-basic">— 問</div>
           </div>
           <div class="level-card intermediate" onclick="startQuiz('intermediate')">
             <div class="level-card-icon">🔵</div>
             <div class="level-card-name">INTERMEDIATE</div>
-            <div class="level-card-count">12 問</div>
+            <div class="level-card-count" id="count-intermediate">— 問</div>
           </div>
           <div class="level-card advanced" onclick="startQuiz('advanced')">
             <div class="level-card-icon">🟣</div>
             <div class="level-card-name">ADVANCED</div>
-            <div class="level-card-count">8 問</div>
+            <div class="level-card-count" id="count-advanced">— 問</div>
           </div>
         </div>
       </div>
 
       <div class="start-tip">
-        <strong>ルール：</strong>構成図を読んで、最もあてはまるユースケースを選ぼう。
-        正解後に表示される解説で「なぜそのアーキテクチャか」を理解することが大事！
+        <strong>ルール：</strong>毎回5問をランダム出題。構成図を読んで、最もあてはまるユースケースを選ぼう。
+        解説で「なぜそのアーキテクチャか」を理解することが大事！重複なく全問ローテーション。
       </div>
     </div>
 
@@ -657,8 +657,11 @@
       <div class="level-breakdown" id="level-breakdown"></div>
 
       <div class="result-actions">
-        <button class="result-btn primary" id="retry-btn" onclick="retryQuiz()">
-          もう一度挑戦
+        <button class="result-btn primary" id="next5-btn" onclick="next5Quiz()">
+          次の5問へ →
+        </button>
+        <button class="result-btn secondary" id="retry-btn" onclick="retryQuiz()">
+          もう一度（同レベル・最初から）
         </button>
         <button class="result-btn secondary" onclick="goToStart()">
           レベルを変える
@@ -676,7 +679,10 @@
      * AWS構成図クイズ - メインロジック
      * 作成者: Sekimoto Naoto
      * 作成日: 2026-04-24
+     * 更新日: 2026-04-26（5問ランダム出題モードに改訂）
      */
+
+    const QUESTIONS_PER_SESSION = 5;
 
     // =============================================
     // 状態管理
@@ -687,7 +693,8 @@
       currentIndex: 0,
       correctCount: 0,
       answered: false,
-      // レベル別の正答記録
+      usedIds: new Set(),          // セッション内で出題済みID（重複防止）
+      sessionCount: 0,             // 何セット目か
       levelStats: { basic: [0, 0], intermediate: [0, 0], advanced: [0, 0] }
     };
 
@@ -704,20 +711,65 @@
     }
 
     // =============================================
-    // クイズ開始
+    // 問題プール取得
     // =============================================
-    function startQuiz(level) {
-      state.selectedLevel = level;
-      state.questions = level === 'all'
+    function getPool(level) {
+      return level === 'all'
         ? [...QUESTIONS]
         : QUESTIONS.filter(q => q.level === level);
+    }
 
-      // シャッフル
-      for (let i = state.questions.length - 1; i > 0; i--) {
+    // =============================================
+    // シャッフル
+    // =============================================
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [state.questions[i], state.questions[j]] = [state.questions[j], state.questions[i]];
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // =============================================
+    // スタート画面の問題数表示を動的更新
+    // =============================================
+    function updateStartCounts() {
+      const total = QUESTIONS.length;
+      const basic = QUESTIONS.filter(q => q.level === 'basic').length;
+      const inter = QUESTIONS.filter(q => q.level === 'intermediate').length;
+      const adv   = QUESTIONS.filter(q => q.level === 'advanced').length;
+      document.getElementById('count-all').textContent          = `全 ${total} 問`;
+      document.getElementById('count-basic').textContent        = `全 ${basic} 問`;
+      document.getElementById('count-intermediate').textContent = `全 ${inter} 問`;
+      document.getElementById('count-advanced').textContent     = `全 ${adv} 問`;
+    }
+    window.addEventListener('DOMContentLoaded', updateStartCounts);
+
+    // =============================================
+    // クイズ開始（新セッション）
+    // =============================================
+    function startQuiz(level, keepUsed = false) {
+      state.selectedLevel = level;
+      if (!keepUsed) {
+        state.usedIds = new Set();
+        state.sessionCount = 0;
       }
 
+      const pool = getPool(level);
+
+      // 未出題の問題を取得。全問出切ったらリセット
+      let available = pool.filter(q => !state.usedIds.has(q.id));
+      if (available.length < QUESTIONS_PER_SESSION) {
+        state.usedIds = new Set();
+        available = pool;
+      }
+
+      // シャッフルして5問選択
+      shuffle(available);
+      state.questions = available.slice(0, QUESTIONS_PER_SESSION);
+      state.questions.forEach(q => state.usedIds.add(q.id));
+
+      state.sessionCount++;
       state.currentIndex = 0;
       state.correctCount = 0;
       state.levelStats = { basic: [0, 0], intermediate: [0, 0], advanced: [0, 0] };
@@ -726,8 +778,14 @@
       renderQuestion();
     }
 
+    // 次の5問（同レベル・使用済みIDを引き継ぐ）
+    function next5Quiz() {
+      startQuiz(state.selectedLevel, true);
+    }
+
+    // もう一度（最初からリセット）
     function retryQuiz() {
-      startQuiz(state.selectedLevel);
+      startQuiz(state.selectedLevel, false);
     }
 
     // =============================================
@@ -899,10 +957,26 @@
       });
       bdEl.innerHTML = hasAny ? bdHTML : '';
 
-      // もう一度ボタンのラベル
-      const retryLevel = state.selectedLevel === 'all' ? '全問' :
-        ({ basic: 'BASIC', intermediate: 'INTERMEDIATE', advanced: 'ADVANCED' }[state.selectedLevel]);
-      document.getElementById('retry-btn').textContent = `もう一度挑戦（${retryLevel}）`;
+      // 次の5問ボタン：残り問題数を表示
+      const pool = getPool(state.selectedLevel);
+      const remaining = pool.filter(q => !state.usedIds.has(q.id)).length;
+      const next5Btn = document.getElementById('next5-btn');
+      if (remaining >= QUESTIONS_PER_SESSION) {
+        next5Btn.textContent = `次の5問へ → (残り ${remaining} 問)`;
+        next5Btn.style.display = '';
+      } else if (remaining > 0) {
+        next5Btn.textContent = `次の5問へ → (残り ${remaining} 問 ※リセット後)`;
+        next5Btn.style.display = '';
+      } else {
+        next5Btn.textContent = `全問制覇！もう一周する`;
+        next5Btn.style.display = '';
+      }
+
+      document.getElementById('result-subtitle').textContent =
+        `${state.sessionCount}セット目 / ${QUESTIONS_PER_SESSION}問 完了`;
+
+      // リトライボタンのラベル
+      document.getElementById('retry-btn').textContent = `最初からやり直す`;
 
       showScreen('result');
 
