@@ -725,9 +725,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. VPC内EC2がインターネットを経由せずS3にプライベートアクセスする構成',
-      'B. VPC Gateway EndpointがEC2とS3の間でTLS終端を行い、S3バケットのデータを復号してEC2に渡すデータプロキシとして機能する構成',
-      'C. EC2がGateway Endpointを経由してS3に接続するが、バケットポリシーの設定がなければインターネット経由と同じ経路でデータが流れる構成',
-      'D. Gateway EndpointがNATゲートウェイの代替として機能し、VPC内のすべてのAWSサービス宛トラフィックをインターネットを経由せず転送する構成'
+      'B. Gateway EndpointをVPCに作成するだけでS3バケットへのアクセスが自動的にプライベート経路に切り替わるため、S3バケットポリシーやEC2のIAMロール設定は不要になる構成',
+      'C. VPC Gateway EndpointはS3専用のプライベートルートをルートテーブルに追加するが、VPC外のオンプレミスやDirect Connect環境からは同じエンドポイントを共有利用できる構成',
+      'D. Gateway EndpointがEC2からS3へのリクエストをVPC内でプロキシするため、S3バケットはVPCのCIDRブロックをソースIPとして識別し、バケットポリシーでIP制限をかけられる構成'
     ],
     answer: 'A',
     explanation: '【正解: A】VPC Gateway EndpointはS3/DynamoDBへのプライベート経路を提供します。EC2からのS3アクセスがインターネットゲートウェイやNATゲートウェイを経由しなくなるため、セキュリティ向上と転送コスト削減が実現できます。\n\n【Bが違う理由】Gateway EndpointにTLS終端やデータ復号の機能はありません。S3はHTTPSで通信を暗号化しており、Endpointはルーティングのみでデータ内容を操作しません。\n\n【Cが違う理由】Gateway Endpointを設定すると、VPCルートテーブルにS3向けエントリが追加され、S3宛トラフィックは自動的にEndpointを経由します。インターネット経由の経路には戻りません。バケットポリシーはアクセス制御に使いますが、通信経路の変更には関係しません。\n\n【Dが違う理由】Gateway EndpointはS3とDynamoDB専用であり、すべてのAWSサービス宛トラフィックを処理するわけではありません。他のAWSサービスにはInterface Endpoint（PrivateLink）を使います。NATゲートウェイの完全な代替にはなりません。'
@@ -745,9 +745,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. DynamoDBの読み取り結果をDAXでインメモリキャッシュし、読み取りレイテンシをマイクロ秒台に短縮する構成',
-      'B. DAXがアプリケーションとDynamoDBの間でWrite-Throughキャッシュとして機能し、書き込みオペレーションのスループットをDynamoDBの制限値を超えて処理する構成',
-      'C. アプリケーションがDynamoDBに直接書き込んだ後、DAXが変更を検知してキャッシュを自動無効化し、次の読み取りから最新データを返す構成',
-      'D. DAXがDynamoDBのテーブルを完全にキャッシュするため、DynamoDBのキャパシティユニット（RCU/WCU）の消費がゼロになる構成'
+      'B. DAXがWrite-Throughキャッシュとして機能するため、アプリがDAXに書き込むとDynamoDBとキャッシュが同時に更新され、書き込み後の読み取りでも常に最新データをマイクロ秒台で返せる構成',
+      'C. アプリケーションがDAXを経由してDynamoDBに書き込むと、DAXがそのキャッシュエントリを即時無効化（キャッシュイン・イン方式）するため、結果整合性ではなく強い整合性の読み取りが保証される構成',
+      'D. DAXはDynamoDBの前段に置かれ、読み取りはDAXが応答するためDynamoDBのRCUをほぼ消費しないが、DAX自体のノードスペックに関わらずDynamoDBのWCUはDAXのキャッシュヒット時にも通常通り消費される構成'
     ],
     answer: 'A',
     explanation: '【正解: A】DAX（DynamoDB Accelerator）はDynamoDBと互換のインメモリキャッシュです。読み取りレイテンシをミリ秒からマイクロ秒に短縮でき、DynamoDBの読み取りキャパシティの消費も削減できます。\n\n【Bが違う理由】DAXは書き込みスループットを増幅する機能はありません。書き込みはDAXを通過してDynamoDBに直接書き込まれます（Write-Through）。DynamoDBのWCU制限を超える書き込みはDAXでも処理できません。\n\n【Cが違う理由】DAXはDynamoDBからのイベント通知でキャッシュを無効化する仕組みではありません。書き込み時にDAX経由で書き込むことでキャッシュの整合性を保ちます。アプリケーションがDAXをバイパスしてDynamoDBに直接書き込むとキャッシュが古くなるリスクがあります。\n\n【Dが違う理由】DAXはキャッシュヒット時のRCU消費を削減しますが、キャッシュミス時はDynamoDBを読みに行くのでRCUが消費されます。また書き込みはDAXを経由してもDynamoDBのWCUを消費します。「RCU/WCUがゼロになる」は誤りです。'
@@ -763,9 +763,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 複数のLambda関数が共有ファイルシステムを通じて大容量データや永続ファイルを読み書きする構成',
-      'B. EFSがLambda関数の実行ログを一元収集し、Function A・B・Cが並列でログを分析してCloudWatchに転送する構成',
-      'C. Lambda関数のデプロイパッケージをEFSに保存することで、250MBのデプロイサイズ制限を回避してLambdaを起動する構成',
-      'D. EFSをLambdaのエフェメラルストレージ（/tmp）の代替として使用し、関数実行ごとにEFSの内容が自動クリアされる構成'
+      'B. EFSがLambda関数間の共有メモリとして機能し、Function AがEFSに書き込んだデータをFunction BがメモリキャッシュとしてRAM展開することで、/tmpより高速なデータ共有を実現する構成',
+      'C. Lambda関数のデプロイパッケージをEFSに保存することで、250MBのデプロイサイズ制限を回避し、複数のLambda関数が同じEFS上のライブラリを共有してコールドスタート時間を短縮する構成',
+      'D. EFSをLambdaのエフェメラルストレージ（/tmp）の代替として使用することで、同一実行環境の複数の関数インスタンス間でデータを共有できるが、関数実行終了後にEFSのマウントポイントが自動的に解放される構成'
     ],
     answer: 'A',
     explanation: '【正解: A】LambdaはEFSをマウントして共有ファイルシステムとして使えます。複数の関数が同じファイルを読み書きできるため、ML推論モデルの共有・大容量データ処理・関数間のデータ受け渡しなどに活用できます。\n\n【Bが違う理由】Lambdaの実行ログはCloudWatch Logsに自動転送されます。EFSがログ収集をするためにLambdaと接続する構成は一般的ではありません。\n\n【Cが違う理由】Lambdaのデプロイパッケージ（Zipやコンテナイメージ）はS3またはECRに保存されます。EFSにデプロイパッケージを配置してサイズ制限を回避する機能はありません。Lambda Layersで依存関係を分割するのが一般的な対処法です。\n\n【Dが違う理由】EFSの内容は関数実行後も永続されます。自動クリアされるのはLambdaのエフェメラルストレージ（/tmp、最大10GB）であり、EFSとは全く別物です。EFSはNFSプロトコルで接続する永続ストレージです。'
@@ -807,9 +807,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. S3のライフサイクルポリシーでアクセス頻度に応じてストレージクラスを自動移行し、長期保存コストを最適化する構成',
-      'B. S3 Standard-IAからGlacierへの移行はS3が自動判断するため、ライフサイクルポリシーの日数設定はSLAの目安であり、実際の移行タイミングはS3のアクセスパターン分析結果に依存する構成',
-      'C. Glacier Deep Archiveに移行したオブジェクトはS3コンソールから即座に取得できるが、費用がStandardの10倍かかるため実質的に書き込み専用の「コールドストレージ」として使う構成',
-      'D. ライフサイクルポリシーによりStandardから移行したオブジェクトは元のストレージクラスに戻せないため、Glacier Deep Archiveは「不変ストレージ（Write Once Read Never）」として設計する構成'
+      'B. S3 Standard-IAへの移行は最低30日間のStandard保存が必要で、Glacier Instant RetrievalへはStandard-IAで最低30日間保存後に移行できるが、Glacier Deep Archiveへの直接移行は90日ルールが適用されるためこの構成では動作しない',
+      'C. Glacier Instant RetrievalはGlacier Deep Archiveへの移行前の中間ストレージとして機能し、数ミリ秒での取得が可能だが、Deep Archiveへ移行済みのオブジェクトを取得する場合はGlacier Instant Retrievalを経由して段階的に復元される構成',
+      'D. ライフサイクルポリシーで移行したオブジェクトはS3の標準機能では元のストレージクラスへの自動ロールバックができないため、Glacier Deep Archiveに移行したオブジェクトをStandardに戻すにはCopyオペレーションで明示的に新しいオブジェクトを作成する必要がある構成'
     ],
     answer: 'A',
     explanation: '【正解: A】S3ライフサイクルポリシーを使うと、オブジェクトの経過日数に応じてStandard → Standard-IA → Glacier Instant Retrieval → Glacier Deep Archiveと自動移行できます。アクセス頻度の低いデータの保管コストを大幅に削減できる典型的なコスト最適化パターンです。\n\n【Bが違う理由】ライフサイクルポリシーの日数設定は厳密に適用されます。S3がアクセスパターンを自動分析して移行タイミングを変えることはありません。アクセスパターンに基づく自動階層化を使いたい場合はS3 Intelligent-Tieringを使います。\n\n【Cが違う理由】Glacier Deep Archiveへの移行後の取得にはS3 コンソールからリストアリクエストが必要であり、標準取得で12時間程度かかります。「即座に取得できる」のはGlacier Instant Retrievalの説明です。Deep Archiveは最も低コストかつ最も取得に時間がかかるクラスです。\n\n【Dが違う理由】Glacierに移行したオブジェクトはRestoreオペレーションで元のStandardクラスに一時コピーすることができます。「元のストレージクラスに戻せない」は誤りです。また、ライフサイクルポリシーは「不変ストレージ」を意味しません。オブジェクトロック（WORM）とは別の機能です。'
@@ -831,9 +831,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. GraphQL APIでDynamoDBのデータをCRUD操作し、データ変更時にSubscriptionでクライアントへリアルタイム通知するアプリ基盤',
-      'B. AppSyncのResolverがDynamoDB StreamsをポーリングしてGraphQL Mutationを自動生成し、クライアントへのPushをWebSocketではなくHTTPポーリングで実現する構成',
-      'C. DynamoDBへの書き込みはAppSyncを経由せず直接行い、DynamoDB StreamsのイベントをAppSyncがキャプチャしてGraphQLスキーマに変換してクライアントへ転送する構成',
-      'D. AppSyncのSubscriptionはクライアントがQuery/Mutationを実行するたびに自動的に新しいWebSocket接続を確立し、接続IDをDynamoDBで管理するチャットシステムの構成'
+      'B. AppSyncのSubscriptionはDynamoDB Streamsから変更イベントを受け取るたびにResolverがMutationを自動生成し、クライアントへのPushはMQTT over WebSocketではなくGraphQL Mutationのレスポンスとして返される構成',
+      'C. DynamoDBへの書き込みはAppSyncのMutationを経由せずSDKで直接行い、DynamoDB StreamsのイベントをAppSyncがキャプチャしてGraphQLのSubscriptionイベントに変換してクライアントへPushする構成',
+      'D. AppSyncのSubscriptionはクライアントが最初に接続したWebSocketセッションを維持し続け、同じResolverを持つMutationが実行されるたびにDynamoDBへの書き込み結果をフィルタリングして該当するSubscriberにのみPushする構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AppSyncはGraphQL APIを提供し、ResolverがDynamoDBとのCRUD操作を担います。DynamoDB Streamsと連携するとデータ変更時にSubscriptionを通じてWebSocket接続中のクライアントにリアルタイムでプッシュ通知できます。チャット・コラボレーションアプリに最適です。\n\n【Bが違う理由】AppSyncのResolverはDynamoDB StreamsをポーリングしてMutationを自動生成する機能はありません。また、AppSyncのSubscriptionはWebSocketベースであり、HTTPポーリングではありません。\n\n【Cが違う理由】DynamoDBへの書き込みをAppSyncを経由せず直接行うと、AppSyncのResolver経由での整合性制御ができなくなります。DynamoDB Streams経由でAppSyncに連携する構成も可能ですが、図の構成では書き込みはAppSync経由です。\n\n【Dが違う理由】AppSyncのSubscriptionは一度WebSocket接続を確立すれば、Query/Mutationのたびに新しい接続を作りません。継続的な接続を維持してサーバー側からPushします。接続IDをDynamoDBで管理するのはAPI Gateway WebSocket APIの構成であり、AppSyncとは異なる実装です。'
@@ -851,9 +851,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. Lambdaの大量同時実行でRDSのコネクション数が枯渇しないよう、RDS ProxyがコネクションをプールしてRDSへの接続数を制御する構成',
-      'B. RDS ProxyがLambdaとRDSの間でSQLクエリをキャッシュし、同一クエリの結果を返すことでRDSのCPU負荷を削減するクエリキャッシュ構成',
-      'C. LambdaがRDS Proxyにリクエストを送ると、ProxyがLambdaの実行環境ごとに専用のDB接続を割り当てて接続を維持し続けるスティッキーコネクション構成',
-      'D. RDS ProxyがRDS Auroraのリードレプリカへの読み取りと、プライマリへの書き込みを自動で振り分けるRead/Writeスプリッティングを実現する構成'
+      'B. RDS ProxyがLambdaとRDSの間でSQLクエリをキャッシュし、同一クエリに対してはRDSへのアクセスなしにProxyが直接レスポンスを返すことでRDSのCPU負荷を削減するクエリキャッシュ構成',
+      'C. RDS ProxyがLambdaの各実行環境（コンテナ）とRDS間のコネクションを多重化（Multiplexing）するため、Lambdaの同時実行数が増えてもRDSへのコネクション数はLambda実行数と1対1で増加しない構成',
+      'D. RDS ProxyがRDS Auroraのリーダーエンドポイントとライタープライマリエンドポイントを自動検出し、LambdaからのSQLの種類（SELECT/INSERT等）を解析してリードレプリカとプライマリに振り分けるRead/Writeスプリッティング構成'
     ],
     answer: 'A',
     explanation: '【正解: A】LambdaはスケールアウトするとRDSへの同時接続数が急増し、RDSのmax_connectionsを超えるリスクがあります。RDS ProxyがコネクションをプールしてLambdaからの大量接続を吸収し、RDSへの実際の接続数を少なく保ちます。\n\n【Bが違う理由】RDS ProxyはSQLクエリ結果をキャッシュする機能を持ちません。クエリキャッシュにはElastiCache（Redis/Memcached）やDAX（DynamoDB用）を使います。RDS Proxyはコネクションのプーリングのみを担います。\n\n【Cが違う理由】RDS Proxyの目的はコネクション数の削減です。Lambdaの実行環境ごとに専用DB接続を割り当てると、Proxyなしと同じ問題が起きます。Proxyは複数のLambdaコネクションを少数のDB接続に多重化します。\n\n【Dが違う理由】RDS ProxyはRead/Writeスプリッティング（リードレプリカへの自動振り分け）を行いません。この機能はAurora Cluster Endpointまたはアプリケーション側で実装します。RDS ProxyはコネクションプーリングとIAM認証・Secrets Manager連携が主な機能です。'
@@ -874,9 +874,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. GuardDutyが検出した脅威（不審なAPI呼び出し・マルウェア通信等）をEventBridge経由でLambdaが自動修復し、SNSでチームに通知するSOAR構成',
-      'B. GuardDutyがCloudTrailとVPCフローログを直接分析してEventBridgeのルールに新しい検出条件を追加し、LambdaはFindingsのスコアリングのみを行う構成',
-      'C. EventBridgeのルールがGuardDutyのFindingsをフィルタリングして重大度の低いものはSNSのみ、高いものはLambdaとSNSの両方に送信するが、SNSがLambdaの後続処理トリガーも兼ねる構成',
-      'D. LambdaがGuardDutyのFindingsをポーリングしてEventBridgeに転送し、EventBridgeがSNSを通じてGuardDutyの検出ルールを動的に更新する構成'
+      'B. GuardDutyが検出したFindingsのうち重大度（Severity）が一定以上のものだけをEventBridgeがフィルタリングし、LambdaがIAM・Security Groupの変更による自動修復を行いつつ、同じFindingsをSNSでチームに通知する構成',
+      'C. EventBridgeがGuardDutyのFindingsをS3に保存し、LambdaがそのS3イベントをトリガーに脅威を自動修復する一方、SNSはLambdaの実行完了通知としてセキュリティチームへアラートを送る構成',
+      'D. LambdaがEventBridgeのスケジュールルールで定期的にGuardDutyのFindingsをポーリングしてSeverityを分類し、高リスクのFindingsのみEventBridgeのカスタムバスに転送してSNSに通知する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】GuardDutyは機械学習ベースで脅威を継続検出し、Findingsを発行します。EventBridgeがFindingsのパターンに応じてルールを評価し、Lambdaで自動修復（不審なIAMキーの無効化・セキュリティグループの変更等）、SNSでセキュリティチームへ通知するSOAR（Security Orchestration, Automation and Response）パターンです。\n\n【Bが違う理由】GuardDutyはCloudTrailやVPCフローログを内部で分析しますが、EventBridgeのルールを動的に更新する機能はありません。EventBridgeのルールは別途手動またはIaCで設定します。\n\n【Cが違う理由】この説明は技術的には可能ですが、「SNSがLambdaの後続処理トリガーも兼ねる」という部分が図と一致しません。図ではEventBridgeがLambdaとSNSの両方を直接トリガーしており、SNSがLambdaをトリガーする流れは示されていません。\n\n【Dが違う理由】LambdaがGuardDutyのFindingsをポーリングする構成はありません。GuardDutyはFindingsをEventBridgeに自動的にプッシュします。またLambdaがEventBridgeを経由してGuardDutyの検出ルールを更新するという流れも、図の矢印の方向と逆です。'
@@ -897,8 +897,8 @@ const QUESTIONS = [
     choices: [
       'A. Cognito Identity Poolが一時的なAWSクレデンシャルをユーザーに発行し、各ユーザーが自分のS3フォルダのみに直接アクセスできるモバイルアプリの構成',
       'B. Cognito Identity PoolがUser Poolの認証結果を受けてS3バケットポリシーを動的に書き換え、ユーザーごとに異なるアクセス権限をバケットポリシーで制御する構成',
-      'C. STSが発行する一時クレデンシャルはデフォルト12時間有効で自動更新されないため、長期稼働アプリではLambdaが定期的にAssumeRoleを実行してクレデンシャルをS3に保存してユーザーに配布する構成',
-      'D. IAM Roleがユーザーの認証状態をS3のオブジェクトメタデータとして記録することで、Cognito Identity Poolがセッション管理とアクセスログの一元管理を担う構成'
+      'C. STSが発行する一時クレデンシャルのデフォルト有効期限は1時間で、期限切れ後もアプリが同じクレデンシャルを使い続けるとS3アクセスが失敗するため、Cognito SDKが自動的にIdentity Poolへ再リクエストしてクレデンシャルを更新するRefresh処理が必要な構成',
+      'D. IAM Roleのポリシー内で${cognito-identity.amazonaws.com:sub}変数を使ってS3のプレフィックスを動的に制限することで、同一のIAM Roleを全ユーザーで共有しながら各ユーザーが自分のフォルダのみアクセスできる構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Cognito Identity Poolはソーシャルログインや自社IdPで認証されたユーザーに対して、STSを通じて一時的なAWSクレデンシャルを発行します。IAMポリシーに${cognito-identity.amazonaws.com:sub}などの変数を使うことで、各ユーザーが自分専用のS3パスにのみアクセスできる細かい権限制御が実現できます。\n\n【Bが違う理由】Cognito Identity PoolはS3バケットポリシーを動的に書き換えません。権限制御はIAMロールのポリシーにCognito IDの変数を組み込む形で実現します。バケットポリシーは静的な設定として管理されます。\n\n【Cが違う理由】STSの一時クレデンシャルはアプリ側（AWS SDKなど）が自動的に更新する仕組みを持っています。LambdaがS3にクレデンシャルを保存してユーザーに配布するのは重大なセキュリティリスクであり、このパターンは推奨されません。\n\n【Dが違う理由】IAM Roleはアクセス権限を定義するものであり、ユーザーの認証状態をS3のメタデータとして記録する機能はありません。セッション管理はCognito Identity Poolが担い、アクセスログはCloudTrailが記録します。'
@@ -918,9 +918,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. エッジロケーションでリクエスト/レスポンスを操作（URL書き換え・認証・A/Bテスト等）するサーバーレスエッジ処理構成',
-      'B. Lambda@EdgeがCloudFrontのキャッシュキーを動的に生成してOriginへのリクエスト数を最小化し、CloudFrontのTTLをLambdaの実行時間に基づいて自動調整する構成',
-      'C. CloudFrontがOriginへのリクエストをすべてLambda@Edgeに転送し、Lambda@EdgeがOriginの代わりにレスポンスを生成してCloudFrontキャッシュに保存する完全サーバーレスCDN構成',
-      'D. Lambda@EdgeがViewer RequestとOrigin Responseの両方をトリガーとして起動し、Viewer RequestでJWTを検証してOrigin Responseで検証結果をDynamoDBに記録する構成'
+      'B. Lambda@EdgeがViewer Requestフックでリクエストのヘッダー・Cookie・クエリ文字列を書き換えてCloudFrontのキャッシュキーを動的に構成し、OriginへのリクエストをLambdaの実行結果に基づいてTTLを変更してキャッシュヒット率を最大化する構成',
+      'C. Lambda@EdgeがOrigin Requestフックで起動してOriginへのリクエストをすべてインターセプトし、OriginへのフォワードなしにLambda@Edgeがレスポンスを直接生成してCloudFrontのキャッシュに保存することで、Originの負荷をゼロにする完全エッジ処理構成',
+      'D. Lambda@EdgeをViewer RequestとOrigin Responseの両フックに設定することで、Viewer RequestでのJWT認証と、Origin Responseでの動的なCache-Controlヘッダー書き換えを組み合わせ、ユーザーごとに異なるTTLでコンテンツをキャッシュする構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Lambda@EdgeはCloudFrontの4つのトリガー（Viewer Request/Response、Origin Request/Response）で実行でき、エッジでのURL書き換え・A/Bテスト・認証・地域別リダイレクト・HTTPヘッダー操作などを実現します。グローバルに低レイテンシで実行できます。\n\n【Bが違う理由】Lambda@EdgeはカスタムキャッシュキーのロジックをCache Policyで補完できますが、CloudFrontのTTLをLambdaの実行時間に基づいて自動調整する機能はありません。TTLはCache-ControlヘッダーやCloudFrontのCache Policyで設定します。\n\n【Cが違う理由】Lambda@EdgeはOriginへのすべてのリクエストをトリガーするわけではなく、キャッシュヒット時はOriginに転送されません。また「OriginへのリクエストをすべてLambdaに転送」する構成では、キャッシュ効率が大幅に低下します。Lambda@EdgeはOriginの代替ではなくリクエスト/レスポンスの変換・フィルタリングが主な用途です。\n\n【Dが違う理由】Lambda@EdgeからDynamoDBへの書き込みは技術的には可能ですが、Lambda@Edgeの実行時間・メモリ制限（通常のLambdaより厳しい）を考慮すると、Origin ResponseでDynamoDBに記録する設計はレイテンシを増大させます。またLambda@Edgeからは特定のリージョンのDynamoDBのみアクセスできる制限もあります。'
@@ -940,9 +940,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. S3から大量の入力データを受け取り、AWS BatchがEC2/Fargateでバッチジョブを並列実行し、EFSで中間データを共有しながら結果をS3に出力する計算基盤',
-      'B. AWS Batchのジョブスケジューラーが常時起動のEC2インスタンスを監視し、EFSの使用率が閾値を超えたときにジョブを自動停止してS3に中断状態を保存するリソース管理構成',
-      'C. S3のオブジェクトごとにAWS Batchが独立したEC2インスタンスを起動し、EFSへの書き込みが完了したオブジェクト数をS3のメタデータとしてカウントするジョブ進捗管理構成',
-      'D. EFSがAWS Batchのジョブキューとして機能し、S3からのデータをEFSがバッファリングしてEC2/Fargateがポーリングで取得する非同期処理構成'
+      'B. AWS Batchのジョブキューが優先度の高いジョブから順にEC2/Fargateへ割り当て、EFSをジョブ間の排他制御（ロックファイル）に使用することで、同一ファイルへの競合書き込みを防ぎながらS3へ結果を出力するジョブ調停構成',
+      'C. AWS BatchのSpotインスタンスが中断された際にEFSへの中間データを引き継ぎ先のEC2インスタンスに自動マウントし、S3からの再ダウンロードなしにジョブを途中から再開するチェックポイント再開構成',
+      'D. S3からのデータをAWS BatchがEC2/Fargateに分配する際、EFSへの書き込み完了をポーリングで確認してから次のジョブを起動することで、ジョブ間の依存関係を維持しながら逐次処理する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS Batchはジョブキューとコンピューティング環境（EC2またはFargate）を管理し、S3から入力データを受け取って並列バッチ処理できます。EFSは複数のBatchジョブが共有できる中間ストレージとして利用でき、ゲノム解析・機械学習の前処理・大規模データ変換などに使われます。\n\n【Bが違う理由】AWS Batchは起動中のEC2インスタンスを監視してEFSの使用率でジョブを停止する機能はありません。リソース管理はBatch自身のコンピューティング環境設定（最小/最大vCPU等）で制御します。\n\n【Cが違う理由】S3のオブジェクトごとに独立したEC2を起動するのはBatchの典型的な用途ですが、「EFSへの書き込み完了オブジェクト数をS3メタデータとしてカウントする」機能はBatchもEFSも持ちません。ジョブ進捗管理にはDynamoDBやCloudWatch Metricsを使います。\n\n【Dが違う理由】EFSはファイルシステムであり、ジョブキューとして機能しません。AWS Batchのジョブキューはマネージドサービスとして提供されています。SQSをトリガーにBatchジョブを起動するパターンは実在しますが、EFSをキューとして使う構成は一般的ではありません。'
@@ -964,9 +964,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. AWSアカウントのAPI操作履歴をCloudTrailで収集・S3に蓄積し、Athenaで特定操作の検索や監査レポートを生成するセキュリティ監査基盤',
-      'B. CloudTrailがリアルタイムでAPI呼び出しをS3に書き込み、AthenaがS3への書き込みイベントをトリガーに自動でSQLクエリを実行して異常なAPI操作を即時検出する構成',
-      'C. S3に保存されたCloudTrailログをAthenaがパーティションなしで全件スキャンすることで、Athenaのコストがかからずクエリが高速に実行できる構成',
-      'D. CloudTrailがS3への書き込みと同時にAthenaの内部テーブルにも直接ログを挿入するデュアルライト構成により、CloudTrailログがS3を経由せずAthenaでクエリ可能になる構成'
+      'B. CloudTrailがS3に書き込んだログをAthenaが自動的に検知してインクリメンタルスキャンし、新規APIコールのみを差分クエリで評価することで、ログが増加してもAthenaのスキャン量とコストが増加しない構成',
+      'C. S3に保存されたCloudTrailログをAthenaのビュー機能がリアルタイムで集計し、IAMユーザーごとのAPI呼び出し回数をCloudTrailが直接カウントすることで、Athenaのクエリ実行なしに監査レポートが生成される構成',
+      'D. CloudTrailがリージョンをまたいだAPIコールをS3の単一バケットに集約し、AthenaがS3のバケットポリシーを読み取ってリージョン別にパーティションを自動作成することで、手動パーティション設定なしにクロスリージョンのログをクエリできる構成'
     ],
     answer: 'A',
     explanation: '【正解: A】CloudTrailはAWSアカウント内のAPI呼び出し（誰が・いつ・何をしたか）を記録し、S3にJSON形式で保存します。AthenaはS3上のデータをサーバーレスSQLで分析できるため、特定IAMユーザーの操作履歴・異常なリソース変更・コンプライアンス監査レポートの作成に使われます。\n\n【Bが違う理由】AthenaはS3への書き込みイベントをトリガーに自動でSQLを実行する機能を持ちません。Athenaはユーザーが手動またはスケジュールで実行するアドホッククエリサービスです。リアルタイム異常検知にはCloudWatch Logs Insights・GuardDuty・EventBridgeが適しています。\n\n【Cが違う理由】AthenaはS3のデータをスキャンした量に応じて課金されます。パーティションなしで全件スキャンするとコストが高くなります。コスト最適化には日付・リージョンなどでパーティション分割が必要です。「コストがかからない」は誤りです。\n\n【Dが違う理由】CloudTrailはS3にログを書き込むサービスであり、AthenaのテーブルにデュアルライトするAPIは存在しません。AthenaはS3に配置されたデータに対してクエリするサービスです。S3を経由しないAthenaクエリはデータソース設定上不可能です。'
@@ -988,9 +988,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. DynamoDBへの書き込みをStreamsで捕捉してLambdaがOpenSearchにリアルタイム同期し、DynamoDBにない全文検索・複合クエリを実現する構成',
-      'B. OpenSearch ServiceがDynamoDB StreamsをポーリングしてLambdaなしで直接インデックスを更新し、LambdaはOpenSearchのインデックス最適化（Force Merge）タスクのみを定期実行する構成',
-      'C. DynamoDBとOpenSearchの両方に直接書き込むデュアルライト方式で、DynamoDB StreamsとLambdaはOpenSearchへの書き込み失敗時のリトライキューとして機能する構成',
-      'D. LambdaがDynamoDB StreamsではなくDynamoDBのScan操作で全件取得してOpenSearchに同期するため、StreamsはLambdaのコールドスタート防止のためのウォームアップトリガーとして使用する構成'
+      'B. DynamoDB StreamsがLambdaをトリガーして変換処理を行い、LambdaはOpenSearch Serviceへの書き込みとともにDynamoDBのTTLを更新することで、OpenSearchのインデックスとDynamoDBのデータ保持期間が常に同期される構成',
+      'C. LambdaがDynamoDB Streamsから受け取った差分データをOpenSearch Serviceに送信する際、OpenSearchのインデックスが存在しない場合はDynamoDBのデータを全件スキャンして再構築するため、StreamsはOpenSearchの差分同期とフル同期を兼ねるトリガーとして機能する構成',
+      'D. OpenSearch ServiceがDynamoDB Streamsに直接接続するネイティブ統合を利用し、LambdaはOpenSearchのインデックス設定（マッピング・アナライザー）をDynamoDBのテーブル定義変更に追従して自動更新する管理用コンポーネントとして機能する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】DynamoDBは単純なキー・インデックス検索には優れていますが、全文検索・地理検索・ファセット検索・複合集計クエリは苦手です。DynamoDB Streams→Lambda→OpenSearchパターンで変更差分をリアルタイムにOpenSearchへ同期し、検索クエリはOpenSearchに向けることで両者のメリットを活かせます。\n\n【Bが違う理由】OpenSearch ServiceがDynamoDB Streamsを直接ポーリングする機能はありません。Streamsのコンシューマーとして使えるのはLambdaやKinesis Data Streamsです。OpenSearchはインデックスストアであり、外部データソースを自律的にポーリングしません。\n\n【Cが違う理由】デュアルライト方式（DynamoDBとOpenSearchの両方に書き込む）は実装可能ですが、アプリケーション側の複雑さが増し、どちらかへの書き込み失敗時の整合性管理が困難です。Streams経由での非同期同期の方が一般的なパターンです。図の構成もStreams経由の同期を示しています。\n\n【Dが違う理由】DynamoDB Scanで全件取得してOpenSearchに同期するのは、データ量が増えると非常に非効率でコストも高くなります。Streamsは変更差分（CDC: Change Data Capture）を捉えるために使うものであり、コールドスタート防止のウォームアップトリガーとしては使いません。'
@@ -1012,9 +1012,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. ストリームデータをFlinkSQLでリアルタイム分析し、異常パターン検出時にLambdaでアラートを記録・通知するリアルタイム異常検知基盤',
-      'B. Kinesis Data AnalyticsがKinesis Data Streamsをポーリングして分析し、Flink SQLが生成したアラートをS3に一時保存してからLambdaがバッチでDynamoDBとSNSに転送する準リアルタイム構成',
-      'C. LambdaがKinesis Data AnalyticsとKinesis Data Streamsの両方をポーリングして重複を除去し、DynamoDBへの書き込みとSNSへの通知を順序保証付きで実行する構成',
-      'D. Kinesis Data AnalyticsのFlink SQLウィンドウ関数がDynamoDBの過去データと結合して異常を判定し、LambdaはDynamoDBとSNSへの書き込みを並列ではなく直列で実行してデータ整合性を保つ構成'
+      'B. Kinesis Data AnalyticsのFlink SQLがKinesis Data Streamsのシャードごとに異常検知ルールを並列適用し、同一シャードから生成された重複アラートをLambdaが排除してからDynamoDBとSNSへ一度だけ通知する冪等性保証構成',
+      'C. LambdaがKinesis Data Analyticsから受け取ったアラートをDynamoDBに書き込む際、同一のイベントIDが既にDynamoDBに存在する場合はSNS通知をスキップすることで、Flink SQLのウィンドウ再計算による重複通知を防ぐ構成',
+      'D. Kinesis Data AnalyticsのFlink SQLウィンドウ関数が時系列データを集計してアラートを生成し、LambdaはそのアラートをDynamoDBに条件付き書き込み（ConditionExpression）で記録することで、SNS通知とDynamoDB書き込みの順序を保証する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Kinesis Data Analytics（Apache Flink）はストリームデータに対してSQLまたはJava/Pythonでリアルタイム分析ができます。スライディングウィンドウ・タンブリングウィンドウによる集計や異常検知ルールを定義し、条件合致時にLambdaをトリガーしてDynamoDBにアラートを記録・SNSで通知するパターンは、IoTセンサーの異常値検出・金融不正検知などに使われます。\n\n【Bが違う理由】Kinesis Data AnalyticsはKinesis Data Streamsからリアルタイムでデータを受信します（ポーリングではなくストリーム消費）。またFlink SQLのアラートをS3に一時保存してからLambdaがバッチ処理する構成は、リアルタイム性が失われ「準リアルタイム」になります。図の構成はリアルタイムを示しています。\n\n【Cが違う理由】LambdaがKinesis Data AnalyticsとKinesis Data Streams両方をポーリングして重複除去する構成は図と一致しません。データフローはKinesis Streams→Analytics→Lambdaの一方向です。\n\n【Dが違う理由】Kinesis Data AnalyticsはDynamoDBを直接参照するクエリエンジンではありません。ストリームデータのみをインプットとしてリアルタイム処理します。またLambdaがDynamoDBとSNSへの書き込みを「直列」にする必然性はなく、並列実行してもアプリケーション設計次第で整合性は保てます。'
@@ -1032,9 +1032,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. SQSのジョブメッセージをFargate Spotが消費して処理し、結果をS3に保存するコスト最適化されたバッチワーカー構成',
-      'B. Fargate SpotのタスクがSQSを監視してメッセージ数に応じて自動スケールし、Spotの中断時にはSQSのVisibility Timeoutが切れた時点でFargate On-DemandへメッセージをルーティングするFargate固有のフェイルオーバー機能',
-      'C. SQSのFIFOキューがFargate Spotのタスクに順序保証付きで1つずつメッセージを配信し、SpotインスタンスのMDN（Meta Data Notification）によりタスク中断の30秒前にSQSメッセージをキューに返却する構成',
-      'D. Fargate SpotがSQSのロングポーリング（最大20秒）でメッセージを取得するためS3への書き込みに最低20秒のレイテンシが発生し、この遅延をSQSのDelaySecondsで事前に吸収する設計'
+      'B. Fargate SpotのタスクがSQSのメッセージ数に応じてApplication Auto Scalingで自動スケールし、Spot中断通知を受けたタスクがVisibility Timeoutをリセットしてメッセージをキューに戻すことで、処理の中断と再試行をSQS側で吸収する構成',
+      'C. SQSのVisibility Timeoutが切れた未処理メッセージをFargate Spotが再取得して処理するため、タスク中断時の再処理はFargate側のチェックポイント機能ではなくSQSのメッセージ再配信に依存する設計',
+      'D. Fargate SpotがSQSからメッセージを取得して処理した後、S3への書き込み完了を確認してからSQSメッセージを削除するため、S3への書き込みが失敗した場合はVisibility Timeoutの経過後にメッセージが再処理される構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Fargate Spotは通常のFargateより最大70%安く利用できるスポットキャパシティです。SQSをジョブキューとして使い、Fargate Spotタスクがメッセージを取得して処理し、結果をS3に保存するパターンは、動画変換・データ処理・機械学習バッチなど中断許容可能なワークロードのコスト最適化に使われます。\n\n【Bが違う理由】「Spotの中断時にSQSのVisibility TimeoutでFargate On-DemandへルーティングするFargate固有のフェイルオーバー機能」は存在しません。Fargate SpotのインスタンスはAWSから30秒の中断通知が来るため、アプリ側でのグレースフルシャットダウン設計が必要です。未処理のSQSメッセージはVisibility Timeoutが切れれば他のタスクが処理できますが、On-Demandへの自動ルーティングはありません。\n\n【Cが違う理由】SpotインスタンスのMDN（メタデータ通知）はEC2に存在しますが、Fargateの中断通知はECSタスク停止イベントとして通知されます。「SQSメッセージをキューに返却する」機能はFargate側にはなく、アプリケーションがメッセージを明示的にキューに戻すか、Visibility Timeoutを利用して自動戻しを待つ設計が必要です。\n\n【Dが違う理由】SQSのロングポーリングはメッセージが届くまで最大20秒待機する機能ですが、これはFargate Spotのタスク処理に追加レイテンシを与えるものではありません。ロングポーリングはメッセージがない場合の空振りAPI呼び出しを減らすためのものです。'
@@ -1058,9 +1058,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. インターネットに公開せずVPC内からのみアクセスできるプライベートAPI Gateway経由でNLBとECSバックエンドを呼び出す社内API構成',
-      'B. API GatewayのプライベートエンドポイントはVPC Interface Endpoint経由でのみアクセスでき、NLBはAPI Gatewayのスロットリング（レート制限）をバイパスしてECSへ直接大量リクエストを送るための専用経路として機能する構成',
-      'C. VPC Interface EndpointがAPI Gatewayのリクエストを暗号化してNLBに転送し、NLBがECSタスクのTLSを終端するエンドツーエンド暗号化構成',
-      'D. プライベートAPI GatewayとVPC Interface Endpointを組み合わせることで、API GatewayのWAFとCognito認証を自動的に有効化し、社内ユーザーのIAM認証なしでAPIを利用できる構成'
+      'B. VPC Interface EndpointがAPI GatewayのプライベートエンドポイントへのトラフィックをVPC内で終端し、NLBはAPI Gatewayのタイムアウト制限（最大29秒）を超えるバックエンド処理のためにAPI Gatewayを迂回してECSへ直接ロングポーリングリクエストを送る構成',
+      'C. API GatewayのプライベートエンドポイントはVPC Interface Endpointを通じてのみアクセス可能であり、NLBがECSタスクのヘルスチェックを兼ねることでAPI GatewayのステージごとのカナリアデプロイをECSタスク単位で制御できる構成',
+      'D. VPC Interface EndpointのエンドポイントポリシーでAPI Gatewayへのアクセスを特定のIAMロールに制限し、NLBのターゲットグループがECSタスクのIPアドレスを動的に管理することでAPI Gatewayのリソースポリシーを都度更新せずに済む構成'
     ],
     answer: 'A',
     explanation: '【正解: A】API Gatewayのプライベートエンドポイントタイプを使うと、インターネットからはアクセスできず、VPC Interface Endpoint経由でのみ到達できます。VPC Linkを使えばAPI GatewayからVPC内のNLB経由でECS/EC2バックエンドを呼び出せます。社内APIや機密性の高いサービスの内部公開に使われます。\n\n【Bが違う理由】NLBはAPI Gatewayのスロットリングをバイパスするための経路ではありません。API Gatewayのレート制限はUsage Planで管理され、NLBはバックエンドへの振り分けを担います。NLBへのアクセスはAPI Gateway経由が前提の構成です。\n\n【Cが違う理由】VPC Interface EndpointはAWS PrivateLinkを使ったプライベート接続を提供しますが、「リクエストを暗号化する」機能はありません。TLS終端はNLBまたはECSタスク側で設定します。EndpointはルーティングとプライベートIPの割り当てを担います。\n\n【Dが違う理由】プライベートAPI GatewayはWAFとCognito認証を自動で有効化しません。WAF・Cognitoはそれぞれ別途設定が必要です。またプライベートエンドポイントでもリソースポリシーによりIAM認証を強制できます。「認証なしでAPIを利用できる」は誤りです。'
@@ -1084,9 +1084,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. クライアントのリクエストをLambdaで前処理してSageMakerに推論させ、結果を後処理してDynamoDBにキャッシュするMLモデルのリアルタイム推論APIパイプライン',
-      'B. SageMaker EndpointがAPI Gatewayから直接呼び出し可能なHTTPエンドポイントを持つため、LambdaはSageMakerのモデルバージョン管理とエンドポイントの自動スケーリングのみを担う構成',
-      'C. DynamoDBに保存された過去の推論結果をLambdaがSageMaker Endpointの代わりに返すキャッシュファースト構成であり、SageMakerはDynamoDBへの書き込みがない新規リクエスト時のみ起動する構成',
-      'D. 前処理Lambda・SageMaker Endpoint・後処理LambdaがStep Functionsで順序管理されており、API GatewayはStep FunctionsのARNを直接呼び出す同期実行構成'
+      'B. 前処理LambdaがリクエストのパラメータをDynamoDBのキャッシュと照合し、一致する推論結果が存在する場合はSageMaker Endpointを呼び出さずにキャッシュを返すことで、SageMakerの推論コストとレイテンシを削減するキャッシュファースト構成',
+      'C. 後処理LambdaがSageMakerの推論結果をDynamoDBに書き込む際、同一リクエストの並列実行による重複書き込みをDynamoDBの条件付き書き込みで防ぎ、前処理LambdaはDynamoDBの書き込み結果を確認してからクライアントにレスポンスを返す構成',
+      'D. SageMaker Endpointがスケールイン状態のときに前処理Lambdaがコールドスタートのレイテンシを吸収するためリクエストをDynamoDBに一時保存し、後処理LambdaがDynamoDBをポーリングして推論結果と突合する非同期推論構成'
     ],
     answer: 'A',
     explanation: '【正解: A】API Gateway→Lambda（前処理）→SageMaker Endpoint（推論）→Lambda（後処理）→DynamoDB（キャッシュ）はMLモデルをAPIとして公開する典型パターンです。前処理でリクエストをモデルの入力形式に変換し、後処理で推論結果をAPIレスポンス形式に整形します。DynamoDBのキャッシュで同一入力への重複推論を回避できます。\n\n【Bが違う理由】SageMaker EndpointはAPI GatewayからはHTTPSで直接呼び出せますが、VPCやIAM認証の制御、前後処理のロジックを持たせるためにLambdaを介するのが一般的です。LambdaがSageMakerのバージョン管理のみを担う構成はこの図の意図と一致しません。\n\n【Cが違う理由】キャッシュファースト構成を採用することは可能ですが、図の矢印の流れはLambda→SageMaker→Lambda→DynamoDBであり、DynamoDBのキャッシュを先に確認する流れは示されていません。「DynamoDBへの書き込みがない新規リクエスト時のみSageMakerが起動する」という説明も図と不一致です。\n\n【Dが違う理由】図にStep Functionsは登場しません。API Gateway→Lambda→SageMaker→Lambda→DynamoDBはLambda内のコードで順番に呼び出す同期パターンであり、Step Functionsによるオーケストレーションは図から読み取れません。'
@@ -1108,9 +1108,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. EventBridgeのスケジュールでSystems Managerを起動し、タグで指定したEC2インスタンスに自動でOSパッチを適用してレポートをS3に保存する自動パッチ管理構成',
-      'B. Systems Manager AutomationがEventBridgeのスケジュールを動的に書き換えることで、パッチ適用のメンテナンスウィンドウをEC2のCPU使用率に応じて自動調整する適応型パッチスケジューリング構成',
-      'C. EC2インスタンスのパッチ適用はSystems Manager Patch ManagerがS3のパッチリポジトリから直接ダウンロードして適用し、EventBridgeはパッチ完了後にレポートをS3にコピーするトリガーとしてのみ機能する構成',
-      'D. S3に保存されたパッチ適用レポートをEventBridgeが監視し、失敗したパッチ適用がある場合にSystems Manager Automationを再起動してリトライするエラーハンドリング構成'
+      'B. Systems Manager AutomationがEventBridgeのスケジュールをトリガーにEC2インスタンスを停止してパッチを適用し、Patch Managerがパッチ適用後にインスタンスを自動起動してS3にコンプライアンスレポートを書き込む際、インスタンスの再起動タイミングはPatch Managerではなく再起動ドキュメントを呼び出すAutomationが制御する構成',
+      'C. EventBridgeのスケジュールがSystems Manager Automationを起動し、AutomationがPatch Managerのパッチベースラインに従ってEC2インスタンスのパッチを適用する際、タグによるターゲット指定はPatch Managerではなく Systems Manager Automationのパラメータとして渡される構成',
+      'D. Systems Manager Patch ManagerがEC2インスタンスへのパッチ適用結果をS3に書き込み、EventBridgeがS3へのPutObjectイベントをトリガーにSystems Manager Automationを起動してパッチ適用に失敗したインスタンスを再処理するエラーハンドリング構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Systems Manager Patch Managerは、Patch Baselineで承認されたパッチをEC2インスタンスに自動適用する機能です。EventBridgeのスケジュール（cron/rate式）でSystems Manager Automationドキュメントを定期実行し、タグ（例: PatchGroup=Production）で対象EC2を絞り込んでパッチ適用できます。結果レポートはS3に出力され、パッチコンプライアンス状況を把握できます。\n\n【Bが違う理由】Systems Manager AutomationがEventBridgeのスケジュールを動的に書き換えることはできません。スケジュールの変更はEventBridgeのAPIで行います。CPU使用率に応じてメンテナンスウィンドウを調整する機能もSystems Managerにはありません。\n\n【Cが違う理由】Patch Managerがパッチを取得するのはEC2インスタンスから見たOSパッケージリポジトリ（Windows Update、yumリポジトリ等）またはS3のカスタムパッチソースです。EventBridgeがパッチ完了後にレポートをS3にコピーするという機能は存在せず、レポートはSystems Managerが直接S3に書き込みます。\n\n【Dが違う理由】EventBridgeがS3のパッチレポートを監視してSystems Managerを再起動する構成は、S3イベント通知→EventBridge→Systems Manager Automationの流れで実現可能ですが、図の矢印はEventBridgeがトリガーの起点であり、S3をEventBridgeが監視する逆向きの流れは示されていません。'
@@ -1133,9 +1133,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 1つのイベントをEmail・SMS・Slack等の複数チャンネルへ同時配信するマルチチャネル通知基盤',
-      'B. SNS TopicがEmail・SMS・Lambdaに並列配信するが、DynamoDBへの通知ログ記録はSNSのフィルタリングポリシーで除外されたメッセージのみが対象となる構成',
-      'C. EventBridgeのルールがSNS Topicに直接メッセージを送らず、いったんDynamoDBにイベントを書き込んでSNSがDynamoDB Streamsをポーリングして各チャネルに通知する構成',
-      'D. LambdaがSlack/Teams通知を送信した後にDynamoDBへの書き込みを行うため、LambdaのタイムアウトやSlack APIのレート制限によりDynamoDBへの記録が失われる可能性がある構成'
+      'B. SNS TopicがEmail・SMS・Lambdaに並列配信し、LambdaがSlack/Teamsへの通知とDynamoDBへのログ記録を順次実行するが、SNSのメッセージサイズ制限（256KB）を超えたイベントはEventBridgeがDynamoDBに直接書き込んでSNSへの配信をスキップする構成',
+      'C. EventBridgeがSNS Topicにイベントを送信する際、SNSのサブスクリプションフィルターポリシーによりEmail・SMS・Lambdaへの配信対象イベントを個別に絞り込み、DynamoDBへのログ記録対象はLambdaがSNSから受け取ったメッセージ属性をもとに判定する構成',
+      'D. LambdaがSlack/Teams通知を送信した後にDynamoDBへのログ記録を行うため、Slack APIのレート制限でLambdaが再試行を繰り返した場合でも、SNSの配信リトライポリシーによりDynamoDBへの記録は必ず1回だけ保証される構成'
     ],
     answer: 'A',
     explanation: '【正解: A】EventBridgeがイベントを受け取りSNS Topicにpublishすると、Email・SMS・Lambdaの各サブスクライバーに並列で配信されます。Lambdaは受け取ったメッセージをSlack/Teamsに転送し、DynamoDBに通知ログを記録します。障害通知・アラート・業務イベントの多チャネル配信に使われます。\n\n【Bが違う理由】SNSのフィルタリングポリシーは配信先を絞るために使いますが、「除外されたメッセージのみDynamoDBに記録する」という動作はSNSの標準機能にありません。DynamoDBへの記録はLambdaが通知処理と合わせて行います。\n\n【Cが違う理由】SNSがDynamoDB Streamsをポーリングする機能はありません。SNSは他のサービスからpublishを受けてサブスクライバーに配信するサービスです。DynamoDB Streamsのコンシューマーとして使えるのはLambdaやKinesisです。\n\n【Dが違う理由】この選択肢はLambdaがSlack通知とDynamoDB書き込みを逐次実行した場合の潜在的リスクを指摘していますが、「構成図のユースケース」を問う問題として最も適切な説明ではありません。実装上のリスクは正しい指摘ですが、構成図が示す「マルチチャネル通知基盤」がAの説明より適切です。また実装ではDynamoDBへの書き込みをSlack通知と独立させることでこのリスクは回避できます。'
@@ -1159,9 +1159,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. CI/CDパイプラインにCodeGuru Reviewerを組み込み、機械学習ベースのコード品質チェックをPRマージ前に自動実行するDevSecOps構成',
-      'B. CodeGuru ReviewerがCodeBuildのビルドログをリアルタイムで解析してバグを検出し、検出されたバグをCodeBuildが自動修正してからデプロイステージに進む自己修復型CI/CD構成',
-      'C. CodePipelineがCodeGuru Reviewerの指摘重大度スコアを評価してパイプラインの続行/停止を判断し、重大度がしきい値を超えた場合はCodeBuildが自動でロールバックブランチを作成する構成',
-      'D. CodeGuru ReviewerはJavaとPythonのみ対応しているため、他の言語のコードはCodeBuildのカスタムアクションでOSSのlinterに振り分け、ReviewerとlinterのスコアをCodePipelineが集約評価する構成'
+      'B. CodeBuildがCodeGuru ReviewerのAPIを呼び出してコードレビューを要求し、CodeGuru ReviewerがCodeBuildのビルドアーティファクトを静的解析してセキュリティ上の問題を検出した場合、CodeBuildがCodePipelineに失敗ステータスを返してデプロイを中止する構成',
+      'C. CodeGuru ReviewerがPRのコード差分ではなくCodeBuildが生成したビルドログを解析して推奨事項を生成し、指摘件数がしきい値を超えるとCodePipelineが自動的にデプロイステージをスキップして開発者にSNS通知を送る構成',
+      'D. CodePipelineがCodeGuru ReviewerのAPIを直接呼び出してレビュー結果を取得し、重大度スコアがしきい値以下の場合のみデプロイステージに進む構成であり、CodeBuildはCodeGuru ReviewerのレビューIDをアーティファクトとしてCodePipelineに渡す役割を担う構成'
     ],
     answer: 'A',
     explanation: '【正解: A】CodeGuru Reviewerは機械学習ベースでコードの潜在的バグ・セキュリティ脆弱性・非効率なコードパターンを検出します。CodePipelineのビルドステージからCodeGuru Reviewer APIを呼び出すことで、PRマージ前に自動コードレビューをCI/CDパイプラインに組み込めます。\n\n【Bが違う理由】CodeGuru ReviewerはCodeBuildのビルドログをリアルタイム解析する機能はありません。ソースコード（GitリポジトリのPR）を解析します。また「自動修正」の機能はなく、指摘事項（Findings）をPRコメントや結果として出力するのみです。\n\n【Cが違う理由】CodeGuru ReviewerはFindingsの重大度（CRITICAL/HIGH/MEDIUM/LOW/INFO）を返しますが、CodePipelineがスコアのしきい値を自動評価してパイプラインを停止する組み込み機能はありません。しきい値による停止制御にはLambdaやCodeBuildのカスタムスクリプトで実装が必要です。またCodeBuildが自動でロールバックブランチを作成する機能もありません。\n\n【Dが違う理由】CodeGuru Reviewerは現在Java・Python・JavaScript・TypeScript等の複数言語に対応しています。「JavaとPythonのみ」は古い情報または誤りです。なお、複数のlinterとCodeGuru ReviewerのスコアをCodePipelineが自動集約評価する標準機能はなく、カスタム実装が必要です。'
@@ -1186,9 +1186,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 既存のSFTPクライアントを使ったファイル転送をS3に移行するマネージドSFTPサーバー',
-      'B. Transfer FamilyがS3バケットの直接アクセスURLを発行し、ユーザーがFTPクライアントを使わずブラウザからファイルをダウンロードする構成',
-      'C. S3への書き込みをトリガーにTransfer Familyがファイルをオンプレミスへ折り返し転送する双方向レプリケーション構成',
-      'D. Transfer FamilyがSFTPセッションを暗号化するプロキシとして動作し、実際のストレージはS3ではなくEFSに保存される構成'
+      'B. Transfer FamilyがS3バケットへのアクセス権をSFTPユーザーに委任しており、ユーザーはFTPクライアントではなくS3の署名付きURLを使ってファイルをダウンロードする構成',
+      'C. S3バケットへのオブジェクトアップロードをトリガーにTransfer FamilyがSFTPセッションを新たに開始し、ファイルをオンプレミスへ折り返し転送する双方向同期構成',
+      'D. Transfer FamilyのSFTPエンドポイントはDNS名の解決のみを担い、実際のファイル転送プロトコルの処理はS3バケットのエンドポイントが直接実行する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS Transfer FamilyはSFTP・FTP・FTPSといった既存のファイル転送プロトコルをそのまま使いながら、バックエンドのストレージをS3（またはEFS）にするマネージドサービスです。オンプレのSFTPサーバーをAWSに移行する際の代表的なユースケースです。\n\n【Bが違う理由】Transfer FamilyはSFTP/FTPクライアント向けのエンドポイントを提供するサービスであり、ブラウザ向けのダウンロードURLを発行する機能はありません。それはS3の署名付きURLやCloudFrontの役割です。\n\n【Cが違う理由】Transfer FamilyはS3へのファイル受信をマネージドに行いますが、S3への書き込みをトリガーにオンプレへ折り返し転送する機能は持ちません。オンプレへのデータ転送にはDataSyncを使います。\n\n【Dが違う理由】Transfer FamilyはS3だけでなくEFSもバックエンドとして選択できますが、この構成図にはS3が描かれています。「S3ではなくEFS」という説明は図の読み取りとして誤りです。'
@@ -1206,9 +1206,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. オンプレミスのファイルサーバーからS3へのデータ移行・同期',
-      'B. DataSyncがオンプレミスのNFSマウントポイントをS3バケット内のディレクトリとして仮想マウントし、EC2からシームレスにアクセス可能にする構成',
-      'C. DataSync AgentがS3バケットの変更をリアルタイムに検知してオンプレミスへプッシュする、クラウド→オンプレ方向の同期構成',
-      'D. S3へのデータ書き込みをDataSyncがインターセプトして暗号化・圧縮を行い、元データをオンプレミスのNFSに保持したままS3をキャッシュ層として使う構成'
+      'B. DataSync Agentがオンプレミスのファイル変更をリアルタイムに検知してS3へストリーミングアップロードし、S3バケットがNFSマウントポイントとしてオンプレミスから直接参照可能になる構成',
+      'C. DataSyncがS3バケット内のオブジェクト変更を検知してオンプレミスのNFSサーバーへ自動的にプッシュする、クラウド起点の双方向同期構成',
+      'D. DataSync AgentがオンプレミスのNFSとS3の間で差分チェックを行い、S3をキャッシュ層として使用しながら元データはオンプレミスのNFSにのみ保持する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS DataSyncはオンプレミスのNFS・SMBファイルサーバーからS3・EFS・FSxへのデータ移行・定期同期をマネージドに行うサービスです。DataSync Agentをオンプレに配置し、差分転送・帯域制限・暗号化を自動管理します。\n\n【Bが違う理由】DataSyncはNFSをS3内に仮想マウントする機能を持ちません。S3のデータをEC2からファイルシステムのようにアクセスしたい場合はS3 File Gatewayを使います。\n\n【Cが違う理由】DataSyncはオンプレ→クラウドの一方向転送が基本的な用途であり、S3の変更をリアルタイムに検知してオンプレへプッシュする双方向リアルタイム同期の用途ではありません。双方向同期が必要な場合はStorage Gatewayが適切です。\n\n【Dが違う理由】DataSyncはS3への書き込みをインターセプトしてキャッシュ層として使う機能を持ちません。S3をキャッシュ層として使いオンプレにデータを保持するアーキテクチャはStorage Gateway（File Gateway）のユースケースです。'
@@ -1224,9 +1224,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. コンテナイメージをデプロイするだけでインフラ管理不要なWebアプリケーションの構築',
-      'B. App RunnerがRDSのリードレプリカを自動的に選択してクエリを振り分けるコネクションプーリング層として機能する構成',
-      'C. App RunnerのオートスケールによりRDSへの同時接続数が急増しても接続枯渇が発生しない、高スケーラビリティ構成',
-      'D. RDSのバックアップスケジュールをApp Runnerのジョブ実行機能でトリガーし、バックアップ完了をWebhookで通知する構成'
+      'B. App RunnerがRDSのリードレプリカへの接続を自動的に検出してクエリをルーティングするコネクションプーリング層として動作し、書き込みと読み取りを自動で振り分ける構成',
+      'C. App RunnerのオートスケールによりRDSへの同時接続数が急増した場合、App RunnerがRDSのmax_connectionsを動的に引き上げて接続枯渇を防ぐ高スケーラビリティ構成',
+      'D. RDSのメンテナンスウィンドウをApp Runnerのヘルスチェック設定と連動させることで、RDS再起動時にApp Runnerが自動的にトラフィックを停止・再開するゼロダウンタイム構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS App RunnerはDockerイメージまたはソースコードから自動でコンテナをビルド・デプロイし、ロードバランサーやオートスケールまでマネージドに提供するサービスです。RDSと組み合わせることで、インフラ管理を最小限にしたWebアプリを素早く構築できます。\n\n【Bが違う理由】App RunnerはRDSのコネクションプーリングやリードレプリカへの自動振り分け機能を持ちません。コネクションプーリングにはRDS Proxyを使います。\n\n【Cが違う理由】App Runnerはオートスケール機能を持ちますが、スケールアウトするとRDSへの同時接続数も増加します。接続枯渇を防ぐにはRDS Proxyを別途導入する必要があり、App Runner単体でこの問題は解決しません。\n\n【Dが違う理由】App RunnerはWebアプリケーションのホスティングサービスであり、RDSのバックアップスケジュールをトリガーするジョブ実行機能は持ちません。バックアップのトリガーにはEventBridge + LambdaやAWS Backupを使います。'
@@ -1244,9 +1244,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. Lambdaのパフォーマンスとエラーを分散トレーシングで可視化・監視する構成',
-      'B. X-RayがLambdaの実行ログをCloudWatchに転送するロギングエージェントとして機能し、CloudWatchがトレースデータを解析する構成',
-      'C. CloudWatchのアラームがX-Rayのトレース結果を評価し、エラー率が閾値を超えた場合にLambdaを自動で再実行する自己修復構成',
-      'D. LambdaがX-Rayにメトリクスを送信し、CloudWatchはX-Rayから取得したトレースをダッシュボードに表示するだけで独自のログ収集は行わない構成'
+      'B. X-RayがLambdaの実行ログをリアルタイムにCloudWatchへ転送するエージェントとして機能し、CloudWatchはそのログからトレースIDを抽出してサービスマップを生成する構成',
+      'C. CloudWatchアラームがX-Rayのトレースデータをポーリングして評価し、エラーレートが閾値を超えた場合にLambdaの実行ロールを自動的に切り替えて障害を分離する構成',
+      'D. LambdaがX-Rayにトレースを送信するとX-Rayが自動的にCloudWatch Logsへもデータを複製するため、CloudWatch側に個別のロググループを設定せずにLambdaのログを参照できる構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS X-RayはLambdaなどのサービス間のリクエストを追跡・可視化する分散トレーシングサービスです。CloudWatchと組み合わせることで、レイテンシー・エラー率・ボトルネックをService MapやTraceから分析できます。\n\n【Bが違う理由】X-RayはLambdaのログをCloudWatchに転送するエージェントではありません。LambdaのログはLambda自身がCloudWatch Logsに送信します。X-Rayはトレース（リクエストの追跡）に特化したサービスです。\n\n【Cが違う理由】CloudWatchアラームはX-Rayのトレース結果を直接評価する機能を持ちません。X-RayのメトリクスをCloudWatchに送り、それをアラームで監視することは可能ですが、「エラー時にLambdaを自動再実行する」という自己修復の仕組みはこの図には含まれていません。\n\n【Dが違う理由】LambdaはX-Rayにトレースデータを送りますが、メトリクス（実行回数・エラー率・継続時間など）はLambdaがCloudWatchに直接送信します。CloudWatchは独自にLambdaのログとメトリクスを収集しており、X-Ray経由でのみ取得するわけではありません。'
@@ -1296,9 +1296,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. Amplifyがホストするフロントエンドアプリが、Cognitoで認証してAPIを呼び出すフルスタックサーバーレスWebアプリ',
-      'B. CognitoがAmplifyホスティングのCDNキャッシュキーとして機能し、ユーザーごとにパーソナライズされた静的ページをAmplifyがエッジで生成する構成',
-      'C. API GatewayがCognitoのUser Poolを直接クエリしてユーザー情報を取得し、LambdaはDynamoDBへの書き込みのみを担う分離型認証構成',
-      'D. LambdaがCognito User PoolのJWTトークンを検証した後にDynamoDBに書き込むため、API Gatewayのオーソライザーは設定不要な構成'
+      'B. CognitoがAmplifyホスティングのオリジンサーバーとして機能し、ユーザー認証が完了するとCognitoがAPI GatewayへリクエストをプロキシしてLambdaを直接起動する構成',
+      'C. API GatewayがCognitoのUser Poolを直接クエリしてユーザー属性を取得し、その結果をJWTに追加してからLambdaに渡すことでLambdaはDynamoDBへの書き込みのみを担う構成',
+      'D. LambdaがCognito User PoolのJWTトークンを自前で検証した後にDynamoDBへ書き込むため、API GatewayにCognitoオーソライザーを設定すると二重検証になりレイテンシが増加する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS Amplifyでフロントエンド（React・Vue・Next.jsなど）をホストし、Cognito User Poolでサインアップ・ログイン認証を行い、取得したJWTをAPI Gatewayに渡してLambda・DynamoDBでAPIバックエンドを動かすフルスタックサーバーレス構成です。Amplify CLIがこの一連の構成を自動生成します。\n\n【Bが違う理由】CognitoはAmplifyのCDNキャッシュキーとして機能する機能を持ちません。AmplifyはCloudFrontをバックエンドに使いますが、認証とキャッシュキーは別の概念です。ユーザーごとのパーソナライズはLambda@EdgeやCloudFront FunctionsとCognitoを組み合わせて実現しますが、この図の構成とは異なります。\n\n【Cが違う理由】API GatewayはCognito User Poolを「Cognito Authorizer」として設定してJWTを検証しますが、User Poolを直接クエリしてユーザー情報を取得する機能はありません。ユーザー情報の取得にはLambdaからCognito APIを呼び出す必要があります。\n\n【Dが違う理由】LambdaでJWT検証を自前実装することは可能ですが、それはアンチパターンです。API GatewayにCognito Authorizerを設定することで、Lambdaを呼び出す前にJWT検証を行い、無効なリクエストをリジェクトできます。「API Gatewayのオーソライザー設定不要」という説明はセキュリティ上の誤解を招きます。'
@@ -1322,9 +1322,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. API Gateway + Lambda経由でBedrockのFMを呼び出し、会話履歴をDynamoDBに保存するサーバーレスAIチャットボット',
-      'B. LambdaがBedrockをファインチューニングサーバーとして使用し、DynamoDBに蓄積した会話データを学習させてモデルを定期更新する構成',
-      'C. BedrockがDynamoDBの会話履歴を直接参照してコンテキストを構築し、LambdaはAPI GatewayとBedrockの間のプロトコル変換のみを担う構成',
-      'D. DynamoDBがチャット履歴のベクトルDBとして機能し、LambdaがEmbeddingを計算してBedrockのRAGパイプラインに渡す構成'
+      'B. LambdaがBedrockにアクセスする際にDynamoDBの会話履歴を渡してコンテキストを構築するが、Bedrockがその履歴をもとにモデルをセッションごとにファインチューニングするため応答精度が継続的に向上する構成',
+      'C. BedrockがDynamoDBの会話履歴テーブルに直接アクセスしてコンテキストを参照するため、LambdaはAPI GatewayとBedrockの間のリクエスト変換のみを担い、DynamoDBへの書き込みはBedrockが行う構成',
+      'D. API GatewayがBedrockのストリーミングレスポンスをWebSocketで受け取りLambdaに渡すため、DynamoDBへの会話履歴の保存はBedrockがレスポンスを完了した後にEventBridgeをトリガーにして非同期で行われる構成'
     ],
     answer: 'A',
     explanation: '【正解: A】ユーザーがAPI Gateway経由でメッセージを送信 → LambdaがBedrockのFoundation Model（ClaudeやTitanなど）を呼び出してレスポンスを取得 → DynamoDBに会話履歴を保存し次回のコンテキストとして活用する、サーバーレスAIチャットボットの典型構成です。\n\n【Bが違う理由】BedrockのFoundation Modelをリアルタイムにファインチューニングする機能はありません。Bedrockでのカスタマイズ（Fine-tuning）はバッチ処理として別途実行するものであり、LambdaがDynamoDBのデータをリアルタイムに学習させる構成は存在しません。\n\n【Cが違う理由】BedrockはDynamoDBを直接参照する機能を持ちません。会話履歴のコンテキスト管理はLambdaがDynamoDBから履歴を取得し、プロンプトに組み込んでBedrockに渡す形で実装します。BedrockとDynamoDBは直接接続しません。\n\n【Dが違う理由】DynamoDBはベクトルDBとしての機能を持ちません。RAGのベクトル検索にはOpenSearch ServiceやPostgreSQL（pgvector）などを使います。またこの図にEmbeddingの生成フローは描かれておらず、RAGパイプラインとしての構成とは異なります。'
@@ -1346,9 +1346,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. ECRにプッシュされたコンテナイメージの脆弱性をInspectorがスキャンし、Security Hubで集約・EventBridgeで自動対応するコンテナセキュリティ自動化',
-      'B. InspectorがECRのコンテナイメージをビルド時にスキャンし、脆弱性が検出された場合はSecurity HubがECRへのプッシュを自動ブロックしてデプロイを停止する構成',
-      'C. Security HubがEventBridgeのルールとして直接登録されており、InspectorのスキャンイベントはECRを経由せずSecurity Hubに直接送信される構成',
-      'D. LambdaがInspectorのスキャンをオンデマンドで起動し、スキャン結果をECRのイメージタグとして付与した後にSecurity Hubに集約するパイプライン構成'
+      'B. InspectorがECRへのイメージプッシュをトリガーに自動スキャンを実行し、Critical脆弱性を検出した場合はSecurity HubがそのイメージのECRからの取得（Pull）を直接ブロックする構成',
+      'C. Security HubがInspectorのスキャン結果を集約した後、EventBridgeルールの評価対象はSecurity Hubの集約結果ではなくInspectorが直接発行するイベントであるため、Security Hubへの集約とEventBridgeの発火は独立したパスで動作する構成',
+      'D. LambdaがInspectorのAPIを定期的にポーリングしてスキャン結果を取得し、結果をECRのイメージタグとしてメタデータに付与した後にSecurity Hubへ集約するバッチ型パイプライン構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Amazon InspectorはECRにプッシュされたコンテナイメージを継続的にスキャンして脆弱性（CVE）を検出します。発見された脆弱性はAWS Security Hubに集約され、EventBridgeルールでイベントを受け取ったLambdaが開発チームへの通知や脆弱性イメージの自動削除などの対応を行うコンテナセキュリティ自動化の構成です。\n\n【Bが違う理由】InspectorはECRへのプッシュをブロックする機能を持ちません。InspectorはスキャンしてSecurity Hubに結果を送るのみです。プッシュをブロックしたい場合はECRのライフサイクルポリシーやCI/CDパイプライン内でのゲートとして実装します。\n\n【Cが違う理由】構成図ではInspector → ECR → Security Hubという流れが描かれています。InspectorのスキャンイベントはECRとの連携を介して検出されるものであり、「ECRを経由せずSecurity Hubに直接送信」という説明は図の構造と一致しません。\n\n【Dが違う理由】InspectorはECRへのプッシュを自動検知してスキャンを実行します（Lambdaからオンデマンドで起動するのは一部のユースケースのみ）。また、スキャン結果をECRのイメージタグとして付与する機能はInspectorにはありません。'
@@ -1368,9 +1368,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. MSK（マネージドKafka）のトピックをLambdaがコンシュームして処理し、結果をDynamoDBとS3に保存するKafkaベースのストリーム処理基盤',
-      'B. LambdaがMSKのプロデューサーとして定期的にKafkaトピックにメッセージを送信し、DynamoDBに保存後S3にバッチエクスポートする構成',
-      'C. MSKがDynamoDBのChange Data Captureをサブスクライブし、変更データをKafkaトピック経由でS3に直接レプリケートするCDCパイプライン',
-      'D. LambdaのイベントソースマッピングがKafkaのコンシューマーグループとして機能するが、処理のべき等性はDynamoDBの条件付き書き込みではなくMSK側のオフセット管理のみで保証される構成'
+      'B. MSKのKafkaトピックにメッセージが蓄積されるとLambdaが定期的にバッチポーリングしてDynamoDBに書き込み、DynamoDBのTTL設定によって期限切れレコードが自動的にS3へエクスポートされる構成',
+      'C. LambdaのイベントソースマッピングがMSKのトピックパーティションをモニタリングし、パーティション数に応じてLambda関数のコンカレンシーが自動調整されるため、DynamoDBへの書き込みスループットがKafkaのパーティション数に比例してスケールする構成',
+      'D. MSKのKafkaトピックをDynamoDB Streamsと連携させることで、DynamoDBへの書き込みをトリガーにKafkaトピックへ変更イベントを自動的に発行し、S3へのアーカイブはそのイベントをLambdaが処理して行う構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS MSKはApache KafkaのマネージドサービスでありKafkaトピックにメッセージを蓄積します。LambdaのイベントソースマッピングでMSKトピックをコンシュームし、処理結果をDynamoDB（リアルタイムアクセス用）とS3（長期アーカイブ用）に書き込むストリーム処理の構成です。\n\n【Bが違う理由】構成図の矢印はMSK → Lambdaの方向（コンシュームの向き）を示しています。LambdaがMSKのプロデューサーとして動作するには逆方向の矢印が必要です。LambdaがKafkaにメッセージを送信すること自体は可能ですが、この図の構成とは異なります。\n\n【Cが違う理由】MSKがDynamoDBのChange Data Captureをサブスクライブする機能はありません。DynamoDB StreamsのCDCをKafkaに流すにはLambdaやDebeziumを経由して実装します。また、MSKがS3に直接レプリケートする機能もなく、MSK ConnectやKafka Connectを使います。\n\n【Dが違う理由】選択肢Dは実装上の詳細に関する議論であり、「ユースケースとして最も適切なもの」を問う問題の回答としては不適切です。べき等性の保証はDynamoDBの条件付き書き込みとMSKのオフセット管理を組み合わせることが実際の設計では推奨されます。'
@@ -1390,9 +1390,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. オンプレミスからVPC内のプライベートホストゾーンをDNS解決するハイブリッドDNS構成',
-      'B. Route 53 ResolverがオンプレミスDNSサーバーのゾーントランスファーを受けてVPC内にキャッシュし、Direct ConnectはResolverのバックアップ経路として使用される構成',
-      'C. VPC内のEC2インスタンスがRoute 53 Resolverを経由せずDirect Connectを通じてオンプレミスDNSサーバーに直接クエリを送る低レイテンシ構成',
-      'D. Route 53 ResolverのインバウンドエンドポイントがパブリックIPを持ち、オンプレミスがインターネット経由でVPC内のプライベートドメインを解決する構成'
+      'B. Route 53 ResolverがオンプレミスDNSサーバーからゾーントランスファーを受けてVPC内にキャッシュし、Direct ConnectはResolverがオンプレミスに問い合わせる際のバックアップ経路として使用される構成',
+      'C. VPC内のEC2インスタンスがRoute 53 Resolverのインバウンドエンドポイントを経由してオンプレミスDNSサーバーに問い合わせを転送し、オンプレミスのプライベートドメインをVPC内から解決する構成',
+      'D. Route 53 ResolverのインバウンドエンドポイントはVPC内のIPアドレスを持ち、オンプレミスからDirect Connect経由でそのIPに問い合わせが届くと、ResolverがオンプレミスDNSサーバーへフォワードして名前解決する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Route 53 ResolverのインバウンドエンドポイントはオンプレミスのDNSサーバーからVPC内のプライベートホストゾーン（例: xxx.internal）を解決するためのエンドポイントです。Direct Connectを経由してオンプレミスのDNSクエリがVPCに届き、Route 53 Resolverが応答するハイブリッドDNS構成の標準パターンです。\n\n【Bが違う理由】Route 53 ResolverはDNSゾーントランスファーを受ける機能を持ちません。ゾーントランスファーはオンプレミスDNS間のゾーン複製に使う仕組みであり、Resolverとは別の概念です。Direct ConnectはResolverのバックアップ経路ではなく、オンプレとVPCを結ぶネットワーク接続です。\n\n【Cが違う理由】VPC内のEC2インスタンスはデフォルトでVPCのDNSリゾルバー（Route 53 Resolver）を使用します。Direct Connectを通じてEC2が直接オンプレミスDNSにクエリを送る構成は通常の設計ではなく、オンプレDNSへの転送はRoute 53 Resolverのアウトバウンドエンドポイントを使います。\n\n【Dが違う理由】インバウンドエンドポイントはVPC内のプライベートIPアドレスを持ちます（パブリックIPではありません）。インターネット経由での解決はRoute 53のパブリックホストゾーンで行うものであり、プライベートDNS解決にインターネット経由は使いません。'
@@ -1414,7 +1414,7 @@ const QUESTIONS = [
       'A. VPCからインターネットへの通信をNetwork Firewallでステートフルに検査・フィルタリングする、アウトバウンド防御構成',
       'B. Network FirewallがIGWの代わりにNATゲートウェイとして機能し、プライベートサブネットのEC2がNAT変換なしにインターネットへ接続できる構成',
       'C. VPC内のインバウンドトラフィックをNetwork FirewallがすべてブロックしてIGWを無効化するため、外部からのアクセスが完全に遮断されるゼロトラスト構成',
-      'D. Network FirewallがIGWとVPC間に配置されてインバウンド・アウトバウンド両方を検査するため、WAFは不要になる構成'
+      'D. Network FirewallをIGWの直後に配置することでインバウンド通信のみを検査し、VPC内からインターネットへのアウトバウンド通信はNetwork Firewallを経由せず直接IGWへ転送される片方向検査構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS Network FirewallはVPCのサブネット間に配置するマネージドのネットワーク型ファイアウォールです。ステートフル・ステートレスなルールでアウトバウンドトラフィックを検査し、悪意のあるドメインへの接続やポート制限などを制御するアウトバウンド防御構成として使われます。\n\n【Bが違う理由】Network FirewallはNATゲートウェイとして機能しません。NATとファイアウォールは異なる機能です。プライベートサブネットのインターネットアクセスにはNAT GatewayとNetwork Firewallをそれぞれ別途配置します。\n\n【Cが違う理由】Network Firewallはすべてのトラフィックをブロックするためのものではなく、許可・拒否のルールを細かく設定するものです。IGWを無効化する機能もNetwork Firewallには含まれません。「完全遮断」がしたいならセキュリティグループやNACLで対応します。\n\n【Dが違う理由】Network FirewallはL3〜L4（IPアドレス・ポート・プロトコル）およびL7の一部（ドメイン・SNI）を検査しますが、HTTPヘッダー・SQLインジェクション・XSSなどのWebアプリ層の攻撃はWAFの役割です。Network FirewallがあってもWAFは別途必要であり、「WAFが不要」という説明は誤りです。'
@@ -1434,9 +1434,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. Amazon Connectの音声IVRにLexのチャットボットを統合し、顧客の問い合わせを自動応答するAIコンタクトセンター',
-      'B. LexがConnectの通話録音をリアルタイムで文字起こしし、DynamoDBに保存した後Lambdaが感情分析を行う品質管理構成',
-      'C. Connectがすべての問い合わせをLexに転送し、Lexが回答できない場合のみLambdaがDynamoDBを参照して有人オペレーターへの転送を行う、エスカレーション専用構成',
-      'D. DynamoDBに保存された顧客プロファイルをLambdaがリアルタイムに更新し、LexがそのデータをConnectの音声合成エンジンに直接渡してパーソナライズ応答を生成する構成'
+      'B. ConnectがLexを経由せずにLambdaへ直接ルーティングし、LexはDynamoDBの顧客データをもとに通話終了後の満足度スコアを非同期で算出するアフターコール分析構成',
+      'C. LexがConnectの通話をリアルタイムで文字起こしし、Lambdaがキーワードを検出してDynamoDBの対応スクリプトを照合することでオペレーターへのリアルタイムアシストを行う支援構成',
+      'D. DynamoDBに蓄積された過去の問い合わせログをLambdaが定期的に学習データとしてLexに反映し、ConnectはLexが更新されるたびに自動でコンタクトフローを再デプロイする自動改善構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Amazon ConnectはクラウドベースのコンタクトセンターサービスでありAmazon Lexを統合することで、顧客からの問い合わせを音声/チャットボットで自動対応できます。LambdaでバックエンドのDynamoDBを照会して顧客情報を取得し、パーソナライズされた自動応答を実現するAI活用コンタクトセンターの構成です。\n\n【Bが違う理由】Lexは自然言語理解（NLU）のサービスであり、音声の文字起こし（Transcribe）や感情分析（Comprehend）は別のAWSサービスの役割です。また通話録音の文字起こしはAmazon Transcribeが担い、Lexはその役割を持ちません。\n\n【Cが違う理由】この構成がエスカレーション専用と断言することはできません。Connectの問い合わせフローはLexで自動応答→解決できない場合はオペレーターへエスカレーションという設計が一般的ですが、それは「エスカレーション専用」ではなく「自動応答＋エスカレーション」の構成です。ユースケースの説明として過度に限定的です。\n\n【Dが違う理由】LexはDynamoDBのデータをConnectの音声合成エンジンに「直接渡す」機能を持ちません。Lexのフルフィルメント用のLambdaがDynamoDBからデータを取得し、Lexの応答テキストを構築してConnectに返します。データの流れが図の矢印の向きと一致しません。'
@@ -1458,9 +1458,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. Pinpointでセグメント配信し、SESのメールエンゲージメントイベントをKinesisで収集・Lambdaで分析するマーケティングメール基盤',
-      'B. SESがPinpointのキャンペーンデータをKinesis経由でDynamoDBにリアルタイム同期し、LambdaがPinpointのセグメント条件を動的に更新する自動最適化構成',
-      'C. KinesisがSESの送信キューとして機能し、Pinpointのセグメントに対するメール配信レートをLambdaがDynamoDBの送信履歴を参照しながらスロットリングする構成',
-      'D. LambdaがDynamoDBの顧客データを定期的にスキャンしてPinpointのエンドポイントを更新し、SESはKinesisを経由せず直接Pinpointにバウンス情報を返す構成'
+      'B. SESのバウンス・開封・クリックイベントをKinesisがリアルタイムに集約し、LambdaがそのデータをDynamoDBに書き込むとともにPinpointのセグメント条件を自動更新してキャンペーン配信対象を動的に絞り込む自動最適化構成',
+      'C. KinesisがPinpointのキャンペーンスケジューラーとして機能し、DynamoDBのエンゲージメントスコアに応じてLambdaが送信タイミングをリアルタイムに調整してSESへ配信指示を出す送信制御構成',
+      'D. PinpointがLambdaを通じてSESの送信枠（クォータ）をDynamoDBの履歴データに基づいて動的に割り当て、KinesisはSESからのバウンス通知を受け取りPinpointのエンドポイント抑止リストへ直接反映する構成'
     ],
     answer: 'A',
     explanation: '【正解: A】Amazon Pinpointはユーザーセグメンテーションとマーケティングキャンペーンの管理サービスです。SESでメールを配信し、開封・クリック・バウンスなどのエンゲージメントイベントをKinesis Data Streamsで受け取り、Lambdaで処理してDynamoDBにエンゲージメントデータを蓄積するマーケティングメール基盤の構成です。\n\n【Bが違う理由】SESがKinesis経由でPinpointのキャンペーンデータをDynamoDBに同期する機能はありません。データの流れはPinpoint→SES（送信）→KinesisへのイベントプッシュというSESからKinesisへの方向です。LambdaがPinpointのセグメントを動的更新することは可能ですが、それはDynamoDBのデータを元にLambdaが呼び出す別フローです。\n\n【Cが違う理由】KinesisはSESの「送信キュー」ではありません。Kinesis Data StreamsはSESが配信後に発生するエンゲージメントイベント（開封・クリック・バウンス）を受け取るためのものです。送信キューとしてはSQSを使います。\n\n【Dが違う理由】構成図ではSESのイベント（バウンス・開封・クリック）はKinesis Data Streamsに送られると描かれており、「Kinesisを経由せず直接Pinpointにバウンス情報を返す」という説明は図の構造と異なります。SESのバウンス情報処理はSNS・Kinesis・SQSなどを経由するのが一般的です。'
@@ -1481,8 +1481,8 @@ const QUESTIONS = [
     choices: [
       'A. S3のオブジェクトを取得するリクエストをインターセプトし、Lambdaでオンザフライに変換・フィルタリングしてクライアントに返す構成',
       'B. LambdaがS3の元データを取得して変換処理を行い、変換済みデータを別のS3バケットに書き込んだ後クライアントがS3 Object Lambdaアクセスポイント経由で取得する2段階処理構成',
-      'C. S3 Object LambdaがS3バケットのデフォルト暗号化をLambdaで上書きし、クライアントごとに異なる暗号化アルゴリズムを適用してデータを返す暗号化カスタマイズ構成',
-      'D. LambdaがS3の全オブジェクトをバッチスキャンして変換を行い、S3 Object Lambdaアクセスポイントがクライアントへのプロキシとして配信速度を最適化するCDN的な構成'
+      'C. S3 Object LambdaアクセスポイントがLambdaの変換ロジックをキャッシュし、同一オブジェクトへの2回目以降のリクエストではLambdaを呼び出さずキャッシュ済みの変換結果を直接クライアントへ返す構成',
+      'D. LambdaがS3のイベント通知をトリガーにオブジェクト書き込み時点で変換処理を実行し、S3 Object Lambdaアクセスポイントはクライアントへの配信エンドポイントとして変換済みオブジェクトへのリダイレクトのみを担う構成'
     ],
     answer: 'A',
     explanation: '【正解: A】S3 Object Lambdaは、クライアントがS3からオブジェクトをGETするリクエストをS3 Object Lambdaアクセスポイントが受け取り、Lambdaを呼び出してオンザフライでデータを変換（マスキング・フォーマット変換・圧縮解凍など）してからクライアントに返す機能です。元のS3バケットのデータを変更せずに複数の形式を提供できます。\n\n【Bが違う理由】S3 Object Lambdaは「GETリクエスト時にリアルタイムで変換してクライアントに返す」機能であり、変換済みデータを別のバケットに書き込むフローは含まれません。別バケットへの書き込みが必要な場合はS3イベント + Lambdaの構成を使います。\n\n【Cが違う理由】S3 Object LambdaはS3のデフォルト暗号化を上書きする機能を持ちません。S3の暗号化（SSE-S3、SSE-KMS、SSE-C）は書き込み時に設定するものです。クライアントごとに異なる暗号化アルゴリズムを適用することもObject Lambdaの用途ではありません。\n\n【Dが違う理由】S3 Object LambdaはCDNではなくS3のアクセスポイント機能の拡張です。全オブジェクトをバッチスキャンする処理はObject Lambdaのトリガーモデル（GETリクエスト単位）とは異なります。CDN的な配信速度最適化はCloudFrontの役割です。'
@@ -1502,9 +1502,9 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. ライブ映像をクラウドでエンコード・パッケージングしてCloudFrontからグローバルに配信するライブストリーミング基盤',
-      'B. MediaLiveが録画済み動画をリアルタイムでフレーム分析し、MediaPackageがそのメタデータをHLSのID3タグとして付与してCloudFront経由でEPGを配信する構成',
+      'B. MediaLiveがHLSセグメントを生成してMediaPackageに送信し、MediaPackageはDRMを適用せずCloudFrontのフィールドレベル暗号化に暗号化処理を委譲することで視聴者ごとに異なる復号鍵を配布する構成',
       'C. CloudFrontがMediaPackageのオリジンサーバーとしてHLSセグメントをキャッシュし、MediaLiveは視聴者数に応じてビットレートを動的に切り替えるABRエンコードのみを担う構成',
-      'D. MediaPackageのDRMがCloudFrontのフィールドレベル暗号化と連携して動作するため、視聴者はCloudFrontのキャッシュからではなくMediaPackageから直接コンテンツを取得する構成'
+      'D. MediaPackageのDRMがCloudFrontのキャッシュポリシーと連携して動作するため、DRM保護されたコンテンツはCloudFrontにキャッシュされず毎回MediaPackageから直接視聴者へ配信される構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS MediaLiveはライブ映像ソース（カメラ・エンコーダー）を受け取りH.264/H.265にエンコードするサービスです。MediaPackageがHLS・DASH・CMFのパッケージングとDRM保護を行い、CloudFrontがエッジから世界中の視聴者にストリームを低レイテンシで配信するライブストリーミング基盤の標準構成です。\n\n【Bが違う理由】MediaLiveは動画のフレーム分析機能を持ちません。映像の内容分析にはRekognition Videoを使います。また、EPG（電子番組表）の配信はMediaPackageの主要機能ではありません。\n\n【Cが違う理由】CloudFrontはMediaPackageのオリジンに接続してHLSセグメントを配信しますが、「CloudFrontがMediaPackageのオリジンサーバーとして機能する」という説明は逆です（CloudFrontがクライアントに近い側で、MediaPackageがオリジン側）。また、MediaLiveはABRのマルチビットレートエンコードを担いますが、「視聴者数に応じて動的に切り替える」のはABR再生プレイヤー側の処理です。\n\n【Dが違う理由】MediaPackageのDRMとCloudFrontのフィールドレベル暗号化は別の機能です。CloudFrontのフィールドレベル暗号化は特定のHTTPフォームフィールドを暗号化する機能であり、DRMとは直接連携しません。また、CloudFrontにキャッシュがある場合は視聴者はCloudFrontから取得するのが通常の動作です。'
@@ -1530,8 +1530,8 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. OrganizationsのSCPでガードレールを設定し、ConfigとSecurity Hubで全アカウントのコンプライアンスを自動監視・修復するマルチアカウントガバナンス基盤',
-      'B. SCPがConfigのルール評価結果を参照してポリシー違反のアカウントを自動停止し、Security HubがLambdaの修復ログをOrganizationsの管理コンソールに転送する自動ガバナンス構成',
-      'C. ConfigのルールをSCPとして各アカウントにデプロイし、違反検知時にSecurity HubがEventBridgeのルールを動的に追加してLambdaの修復ロジックを更新する自己進化型ガバナンス構成',
+      'B. ConfigのルールがSCPのポリシー条件として各メンバーアカウントに動的に適用され、違反が検知されるとSecurity HubがEventBridgeを通じてOrganizationsのアカウントタグを自動更新しLambdaがSCPのアタッチ先を切り替える構成',
+      'C. Security HubがConfigの評価結果を集約した後にEventBridgeでLambdaを起動し、LambdaがOrganizationsのSCPを書き換えることで違反リソースをリアルタイムに制御するポリシー自動更新構成',
       'D. LambdaがOrganizationsのAPIを直接呼び出してSCPを更新し、ConfigとSecurity Hubは修復後のコンプライアンス確認のみを担う構成'
     ],
     answer: 'A',
@@ -1555,7 +1555,7 @@ const QUESTIONS = [
     choices: [
       'A. StackSetsで複数アカウント・リージョンにインフラを一括デプロイし、Config・SSMパラメータ・CodePipelineで設定管理とデプロイを自動化するマルチアカウントIaC基盤',
       'B. ConfigがStackSetsのテンプレートをスキャンしてIaCの記述ミスをデプロイ前に検証し、SSM Parameter StoreがCloudFormationの変数として動的に値を注入するビルドタイム検証構成',
-      'C. CodePipelineがCloudFormation StackSetsの実行ロールを引き受けて全アカウントにデプロイし、SSM Parameter StoreとConfigはデプロイ後のドリフト検知にのみ使用される構成',
+      'C. StackSetsが全アカウントにCodePipelineをデプロイし、各アカウントのCodePipelineがSSM Parameter Storeの設定値を参照してローカルにインフラを構築するため、Configはアカウントをまたいだ差分のみをOrganizationsの管理アカウントに集約する構成',
       'D. Organizations統合により、StackSetsが新規アカウントを自動検出して全サービスのデプロイをトリガーし、CodePipelineはConfigの評価結果を承認条件として使用するゲーテッドデプロイ構成'
     ],
     answer: 'A',
@@ -1579,8 +1579,8 @@ const QUESTIONS = [
     choices: [
       'A. ネットワーク帯域が不足する環境から大量データをSnowball Edgeで物理転送しS3に取り込み、GlueでETL後RedshiftとQuickSightで分析するデータ移行・分析基盤',
       'B. Snowball EdgeがS3へのリアルタイムデータストリーミングを行い、GlueがSnowball上でETL変換を完了させたデータのみをRedshiftにロードしてQuickSightで差分更新するインクリメンタル分析構成',
-      'C. GlueがS3とSnowball Edge間の双方向データ同期を管理し、Redshiftはオンプレミスとクラウドのデータを統合するフェデレーテッドクエリエンジンとして機能する構成',
-      'D. QuickSightがSnowball EdgeのローカルWi-Fi経由でRedshiftに直接接続し、S3とGlueはSnowball上でのローカル処理にのみ使用されるエッジBI構成'
+      'C. GlueがSnowball Edgeから取り込んだS3データをRedshiftのステージングテーブルにそのままロードし、QuickSightがRedshift上でETLと可視化を同時に処理するため別途Glue変換ジョブは不要となる構成',
+      'D. Snowball Edgeが現地でGlueのETL処理をローカル実行してからS3にアップロードすることで、クラウド側のGlueジョブは不要となり、Redshiftは変換済みデータを受け取ってQuickSightに直接ストリーミングする構成'
     ],
     answer: 'A',
     explanation: '【正解: A】AWS Snow Familyは数十TB〜PBクラスの大量データをインターネット転送ではなく物理デバイスの輸送で移行するサービスです。Snowball Edgeにデータをロードして輸送→AWSがS3にインポート→Glueでデータ変換・クレンジング→RedshiftにロードしてDWHを構築→QuickSightでBIダッシュボードを作成するデータ移行・分析基盤のユースケースです。\n\n【Bが違う理由】Snowball Edgeはリアルタイムストリーミングのデバイスではありません。Snowball Edgeはバッチでのデータ収集・転送に使うデバイスであり、S3へのリアルタイムストリーミングには適しません。また「GlueがSnowball上でETL変換を完了させる」という説明も、通常のGlueジョブはAWSクラウド上で動作するものです（Snowball EdgeのIoT Greengrass機能を使えば一部処理は可能ですが、標準的な構成ではありません）。\n\n【Cが違う理由】GlueはS3とSnowball Edge間の双方向同期を管理する機能を持ちません。Glueはデータカタログ管理とETLジョブ実行のサービスです。RedshiftのFederated Query機能は実在しますが（RDS・Aurora・S3への接続）、Snowball EdgeのデータをRedshiftがリアルタイムにクエリする機能はありません。\n\n【Dが違う理由】QuickSightはSnowball EdgeのローカルWi-Fi経由でRedshiftに接続することはできません。Snowball EdgeはAWSのデータセンターに輸送された後S3にデータがインポートされるデバイスです。エッジでBI処理する構成はSnowball Edgeの主要ユースケースではありません。'
@@ -1600,8 +1600,8 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. データ主権・低レイテンシ要件のためにオンプレミスでAWSインフラを稼働させ、リージョンとのハイブリッド接続を維持するOutposts構成',
-      'B. OutpostsがオンプレミスのVMwareクラスターを自動検出してECSタスクに変換し、Direct Connect経由でS3に継続的にレプリケートするVM移行基盤',
-      'C. ECSとRDSのControl PlaneがOutposts上でローカルに動作するため、Direct Connect / VPNが切断されてもAWSリージョンへの依存なく完全な自律運転が可能な構成',
+      'B. OutpostsがVPC拡張サブネットとして機能し、リージョン側のECSコントロールプレーンからタスク配置の指示を受けてオンプレミスで実行するため、Direct Connect / VPNはECSタスクのデータプレーン通信にのみ使用される構成',
+      'C. ECSとRDSのデータプレーンはOutposts上でローカルに動作するが、コントロールプレーンはAWSリージョンに依存しているため、Direct Connect / VPNが切断されるとタスクのスケジューリングやDBの管理操作が行えなくなる構成',
       'D. OutpostsのVPCサブネットがリージョンのVPCと同一のCIDRを共有し、ECSタスクがS3に書き込む際はOutposts上のS3ローカルエンドポイントを経由するためレイテンシが最小化される構成'
     ],
     answer: 'A',
@@ -1627,7 +1627,7 @@ const QUESTIONS = [
     choices: [
       'A. ECS Fargateコンテナの分散トレース・メトリクス監視・自動アラート通知を統合したコンテナ可観測性（Observability）基盤',
       'B. X-RayがALBのアクセスログをリアルタイムで解析してCloudWatch Container Insightsのメトリクスを生成し、CloudWatch DashboardsがFargateのタスク数を直接制御するオートスケーリング構成',
-      'C. CloudWatch Container InsightsがECS FargateのX-Rayサイドカーコンテナを自動デプロイして収集対象を動的に拡張し、SNSがLambdaとCloudWatch Alarmsを同期的に起動して障害を封じ込める高度な自己修復構成',
+      'C. CloudWatch Container InsightsがX-Rayのトレースデータを集約してアプリケーションのボトルネックを特定し、SNSがLambdaを起動してECS Fargateのタスク定義を書き換えることで障害箇所を自動的に切り離すサーキットブレーカー構成',
       'D. LambdaがCloudWatch Dashboardsのウィジェットを動的に更新してX-Rayのトレースデータを可視化し、SNSがALBのリスナールールを変更してFargateへのトラフィックをリアルタイムに制御する構成'
     ],
     answer: 'A',
