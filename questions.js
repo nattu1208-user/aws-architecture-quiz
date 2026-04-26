@@ -2,7 +2,10 @@
  * AWS構成図クイズ - 問題データ
  * 作成者: Sekimoto Naoto
  * 作成日: 2026-04-24
+ * 更新日: 2026-04-26
  * 説明: AWS構成図を見てユースケースを当てる逆引き形式クイズの問題データ（全30問）
+ *       誤答を「同じ構成図のサービスを使った別解釈・よくある誤解」に統一し、
+ *       熟考しないと選べない難度に改訂。
  */
 
 const QUESTIONS = [
@@ -22,12 +25,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. グローバルに配信される静的ウェブサイトのホスティング',
-      'B. リアルタイムチャットアプリケーションのバックエンド',
-      'C. オンプレミスDBとの定期同期バッチ処理',
-      'D. マイクロサービス間の非同期メッセージング'
+      'B. CloudFrontをAPIプロキシとして使い、S3に保存されたLambda関数コードを動的実行する構成',
+      'C. Route 53のレイテンシールーティングでユーザーを最寄りのS3バケットに直接誘導し、CloudFrontはバイパスする構成',
+      'D. CloudFrontのオリジンをS3に向けることで、S3バケットをプライベートのまま署名付きURLなしに認証制御する構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】Route53でDNS解決 → CloudFrontでエッジキャッシュ配信 → S3から静的ファイル（HTML/CSS/JS）を配信する、最もシンプルな静的サイトホスティングパターン。サーバー不要・低コスト・高可用性が特徴。\n\n【Bが違う理由】リアルタイムチャットにはWebSocket対応のAPI Gateway or AppSyncが必要。\n【Cが違う理由】バッチ同期にはGlue/DMS/Step Functionsが必要。\n【Dが違う理由】非同期メッセージングにはSNS/SQSが必要。'
+    explanation: '【正解: A】Route 53でDNS解決 → CloudFrontでエッジキャッシュ配信 → S3から静的コンテンツを返す、という静的ウェブサイトホスティングの王道構成です。\n\n【Bが違う理由】CloudFrontはHTTPリクエストのプロキシ・キャッシュは行いますが、S3に置かれたコードを直接「実行」する機能はありません。Lambda@Edgeを使えば処理は可能ですが、この図にはLambdaが存在しません。\n\n【Cが違う理由】Route 53のレイテンシールーティングはリージョン単位の振り分けに使いますが、この構成ではCloudFrontがオリジンとしてS3にアクセスします。CloudFrontをバイパスする構成はこの図と一致しません。\n\n【Dが違う理由】CloudFrontのOAC（Origin Access Control）を使えばS3をプライベートに保ちつつ配信は可能ですが、「署名付きURLなしに認証制御する」という説明は不正確で、CloudFrontの署名付きURLやCookieが別途必要です。'
   },
   {
     id: 2,
@@ -43,13 +46,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. 大規模なHadoopクラスターによるバッチ分析処理',
+      'A. API GatewayがリクエストをキャッシュしてLambdaの呼び出しを削減し、DynamoDBへの書き込みを非同期化する読み取り最適化API',
       'B. サーバーレスアーキテクチャによるCRUD APIの提供',
-      'C. オンプレミスシステムとのハイブリッド接続',
-      'D. 機械学習モデルのトレーニングパイプライン'
+      'C. API GatewayのVPCリンク機能を介してDynamoDBにLambdaを経由せず直接アクセスする低レイテンシー構成',
+      'D. LambdaがDynamoDBのストリームをポーリングし、変更イベントをAPI Gateway経由でクライアントにプッシュ通知するリアルタイム構成'
     ],
     answer: 'B',
-    explanation: '【正解: B】API Gateway → Lambda → DynamoDB は、サーバーレスAPIの最定番構成。インフラ管理不要でCreate/Read/Update/Deleteの各操作をLambdaで実装し、DynamoDBに保存する。\n\n【Aが違う理由】HadoopクラスターにはEMRが必要。\n【Cが違う理由】ハイブリッド接続にはDirect Connect/VPN/Transit Gatewayが必要。\n【Dが違う理由】ML学習にはSageMakerが必要。'
+    explanation: '【正解: B】Client → API Gateway → Lambda → DynamoDB という構成は、サーバーレスでCRUD操作を提供する典型的なAPIバックエンドです。インフラ管理不要・スケーラブルな構成として広く使われます。\n\n【Aが違う理由】API Gatewayにキャッシュ機能はありますが、それはあくまでGETリクエストのレスポンスキャッシュです。DynamoDBへの書き込みを非同期化する機能はこの構成には含まれておらず、図の矢印の流れとも一致しません。\n\n【Cが違う理由】API GatewayのVPCリンクはNLB経由でVPC内リソースに接続するものですが、DynamoDBはVPCリソースではなくAWSマネージドサービスであり、VPCリンクで直接つなぐ構成は成立しません。\n\n【Dが違う理由】DynamoDB Streamsをトリガーに使う構成は実在しますが、その場合の矢印の向きはDynamoDB → Lambda です。この図ではClientからの下り方向の処理を示しており、ストリームによるイベント駆動とは逆向きの構成です。'
   },
   {
     id: 3,
@@ -64,12 +67,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. モノリシックなWebアプリケーションの基本構成',
-      'B. グローバルなCDNによるコンテンツ配信',
-      'C. IoTデバイスからのリアルタイムデータ収集',
-      'D. 機械学習による画像自動分類システム'
+      'B. EC2をバッチサーバーとして使い、RDSに蓄積されたデータを定期的に集計・加工する分析基盤',
+      'C. EC2上のアプリケーションがRDSのリードレプリカのみに接続し、書き込みはDMS経由でオンプレミスDBに送る構成',
+      'D. RDSをセッションストアとして使い、EC2がステートレスなAPIサーバーとして水平スケールする構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】EC2でアプリを動かしRDSでデータを永続化するシンプルかつ古典的な2層Webアプリ構成。多くの既存システムがこのパターンを採用している。\n\n【Bが違う理由】CDNにはCloudFrontが必要。\n【Cが違う理由】IoTデータ収集にはIoT Core/Kinesisが必要。\n【Dが違う理由】画像分類にはRekognition/SageMakerが必要。'
+    explanation: '【正解: A】Client → EC2（Web/Appサーバー） → RDS という構成は、Webサーバーとアプリケーションロジックを1台のEC2にまとめ、RDSをデータ永続化に使うモノリシックWebアプリの典型例です。\n\n【Bが違う理由】EC2 + RDSでバッチ処理を行うこと自体は可能ですが、図にはClientからEC2への矢印があり、クライアントがリクエストを送るWeb/Appサーバーの役割を示しています。バッチサーバーとしての用途と図の構造が一致しません。\n\n【Cが違う理由】RDSのリードレプリカやDMSはこの図に登場しません。オンプレミスとの連携を示す要素が構成図に存在しない以上、この選択肢は図の読み取りとして誤りです。\n\n【Dが違う理由】RDSをセッションストアとして使いEC2がステートレスに動くケースは実在しますが、その場合は通常ELBを介した複数EC2構成になります。図にはEC2が1台のみ描かれており、水平スケールを前提とした構成の説明としては不一致です。'
   },
   {
     id: 4,
@@ -85,13 +88,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. 単一のAPIエンドポイントへの同期リクエスト処理',
+      'A. SNS TopicがSQSキューのデッドレターキューとして機能し、処理失敗メッセージをLambdaで再試行する耐障害性構成',
       'B. 1つのイベントを複数のサービスに並行配信するファンアウト処理',
-      'C. 機械学習モデルのA/Bテスト実行環境',
-      'D. マルチリージョンへのデータレプリケーション'
+      'C. SQS Queue AとBがFIFOキューとして順序を保証し、Lambda AとBが依存関係を持ちながら逐次処理する構成',
+      'D. PublisherがSNS Topicをサブスクライブし、LambdaからのレスポンスをSQS経由で受け取るリクエスト・レスポンス型の非同期API'
     ],
     answer: 'B',
-    explanation: '【正解: B】SNSがメッセージを複数のSQSキューに同時配信し、それぞれのLambdaが独立して処理する「ファンアウト」パターン。注文確定時に在庫更新・メール送信・分析処理を並行実行する場合などに使う。\n\n【Aが違う理由】同期リクエストにはAPI Gatewayが適切。\n【Cが違う理由】A/BテストにはLambdaのエイリアスやCloudFrontのルーティングが使われる。\n【Dが違う理由】データレプリケーションにはDMS/S3クロスリージョンレプリケーションが適切。'
+    explanation: '【正解: B】Publisher → SNS Topic → 複数SQSキュー → 複数Lambdaというファンアウトパターンは、1つのイベントを複数の独立したサブスクライバーに並行配信する代表的な構成です。\n\n【Aが違う理由】SNSはデッドレターキュー（DLQ）の役割を果たしません。DLQはSQSやLambdaが失敗時にメッセージを送る先として設定するものであり、SNS TopicがDLQとして機能する構成は存在しません。\n\n【Cが違う理由】FIFOキューで順序を保証すること自体は可能ですが、それはSQSの設定の話であり、この図の構成がファンアウト（並行配信）を示していることとは相反します。「Lambda AとBが依存関係を持つ逐次処理」はこの図の並列構造と矛盾します。\n\n【Dが違う理由】PublisherはSNS TopicにPublish（送信）する側であり、Topicをサブスクライブする側ではありません。また、図の矢印はPublisher→SNS→SQS→Lambdaという一方向の流れを示しており、LambdaからPublisherへの戻りは存在しません。'
   },
   {
     id: 5,
@@ -106,12 +109,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. S3へのファイルアップロードをトリガーとするイベント駆動処理',
-      'B. スケジュール実行による定期バッチレポート生成',
-      'C. VPC内のプライベートリソースへの安全なアクセス制御',
-      'D. グローバルユーザーへの低レイテンシーコンテンツ配信'
+      'B. LambdaがS3をポーリングしてファイルの変更を検知し、処理キューに積むプル型のバッチ処理',
+      'C. S3のPutObjectイベントをLambdaが受け取り、処理結果を同じS3バケットの同一パスに上書き保存する構成',
+      'D. ユーザーがファイルをアップロードするたびにLambdaが同期的にレスポンスを返すリアルタイムファイル変換API'
     ],
     answer: 'A',
-    explanation: '【正解: A】S3にファイルがアップロードされた瞬間にLambdaが自動起動するイベント駆動パターン。画像リサイズ・CSV変換・ウイルススキャンなど「ファイルが来たら処理する」用途に最適。\n\n【Bが違う理由】スケジュール実行にはEventBridge（旧CloudWatch Events）が必要。\n【Cが違う理由】アクセス制御にはIAM/Security Group/NACLが必要。\n【Dが違う理由】CDNにはCloudFrontが必要。'
+    explanation: '【正解: A】ユーザーがS3にファイルをアップロードすると、PutObjectイベントがトリガーとなりLambdaが自動起動するイベント駆動の構成です。画像リサイズ・ファイル変換・メタデータ抽出など幅広い用途で使われます。\n\n【Bが違う理由】S3はLambdaにイベントをプッシュします。LambdaがS3をポーリングする仕組みは存在しません（DynamoDB StreamsやSQSはポーリングですが、S3は異なります）。図の矢印もS3→Lambdaの方向を示しており、プル型の説明とは逆です。\n\n【Cが違う理由】処理結果を同一バケットの同一パスに上書き保存すると、再度PutObjectイベントが発生してLambdaが再トリガーされる無限ループが発生します。実際の設計では出力先を別バケットまたは別プレフィックスに分けることが必須であり、この選択肢は危険なアンチパターンです。\n\n【Dが違う理由】S3のPutObjectイベントはLambdaを非同期で起動します。ユーザーへの同期レスポンスを返す仕組みはこの構成に含まれていません。リアルタイムAPIとして使うには別途API Gatewayなどが必要です。'
   },
   {
     id: 6,
@@ -127,13 +130,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. ユーザーのログイン認証とアクセストークン発行',
+      'A. CloudWatchがEC2のCPU使用率を監視し、アラート発火時にSNS経由でLambdaを呼び出してEC2インスタンスを自動スケールアウトする構成',
       'B. CloudWatchアラートをトリガーとした障害通知・自動対応',
-      'C. 静的コンテンツのグローバルキャッシュ配信',
-      'D. データウェアハウスへのリアルタイムデータ投入'
+      'C. SNS TopicがLambdaとSlackの両方をサブスクライブし、LambdaはSlack通知の送信のみを担う単純な中継構成',
+      'D. CloudWatchアラームが閾値を超えた際にLambdaが直接Slackに通知し、SNSは別系統の通知チャンネルとして並行動作する構成'
     ],
     answer: 'B',
-    explanation: '【正解: B】CloudWatchがメトリクス異常を検知してアラームを発火 → SNSが通知 → LambdaがSlack通知や自動復旧を実行するOps自動化パターン。サーバーダウン・CPU高騰などの障害対応に使われる。\n\n【Aが違う理由】認証にはCognito/IAMが必要。\n【Cが違う理由】キャッシュ配信にはCloudFront+S3が必要。\n【Dが違う理由】DWHへのデータ投入にはKinesis Firehose/Glueが必要。'
+    explanation: '【正解: B】CloudWatch Alarm → SNS Topic → Lambda という流れで、Lambdaがアラート内容に応じてSlack通知と自動復旧処理を実行する、障害対応の自動化構成です。\n\n【Aが違う理由】EC2のスケールアウトはAuto Scalingポリシーで行うのが一般的であり、Lambdaが直接EC2を起動することも技術的には可能ですが、この図の構成の核心は「Slack通知 + 自動復旧処理」の両立であり、スケールアウト専用の説明では不十分です。\n\n【Cが違う理由】図ではLambdaが「Slack通知」と「自動復旧処理」の両方を行うことが明示されています。「LambdaはSlack通知の送信のみ」という説明は自動復旧処理の部分を無視しており、図の読み取りとして不正確です。\n\n【Dが違う理由】図ではCloudWatch → SNS → Lambdaという一本の経路が描かれており、LambdaがSNSを経由せず直接Slackに通知したり、SNSが別系統で動いたりする構成は図と一致しません。'
   },
   {
     id: 7,
@@ -155,7 +158,7 @@ const QUESTIONS = [
       'D. LambdaがCognito User Poolに直接問い合わせてユーザー属性を確認し、アクセス可否を自ら判断する'
     ],
     answer: 'A',
-    explanation: '【正解: A】API GatewayのCognitoオーソライザーはJWTの署名と有効期限をローカルで検証する。Cognitoへの都度問い合わせは不要で、高速かつスケーラブルに機能する。\n\n【Bが違う理由】IAMロールの動的付与はCognito Identity Pool（フェデレーテッドID）の機能。User Poolはエンドユーザー認証が目的であり、AWSリソースへの権限付与は行わない。\n【Cが違う理由】API Gatewayはローカルでの署名検証のためCognitoへのリアルタイム問い合わせは行わない。その結果、トークン失効の即時反映が難しいというトレードオフがある。\n【Dが違う理由】アクセス制御の責務はAPI Gatewayオーソライザーにある。LambdaがUser Poolを直接参照してアクセス判断する設計は責務が混在し、セキュリティリスクになる。'
+    explanation: '【正解: A】API GatewayのCognitoオーソライザーはJWTの署名と有効期限をローカルで検証する。Cognitoへの都度問い合わせは不要で、高速かつスケーラブルに機能する。\n\n【Bが違う理由】IAMロールの動的付与はCognito Identity Pool（フェデレーテッドID）の機能。User Poolはエンドユーザー認証が目的であり、AWSリソースへの権限付与は行わない。\n\n【Cが違う理由】API Gatewayはローカルでの署名検証のためCognitoへのリアルタイム問い合わせは行わない。その結果、トークン失効の即時反映が難しいというトレードオフがある。\n\n【Dが違う理由】アクセス制御の責務はAPI Gatewayオーソライザーにある。LambdaがUser Poolを直接参照してアクセス判断する設計は責務が混在し、セキュリティリスクになる。'
   },
   {
     id: 8,
@@ -170,12 +173,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 処理速度の異なるシステム間をキューで繋ぐ非同期処理',
-      'B. 複数リージョンへの同時データ配信',
-      'C. ユーザーの地理情報に基づくルーティング',
-      'D. マシンイメージからの自動インスタンス起動'
+      'B. ProducerがSQSにメッセージを送信すると同時にLambdaが同期的にトリガーされ、処理結果をProducerに即時返却するリクエスト・レスポンス型構成',
+      'C. Lambda ConsumerがSQSのメッセージを1件処理するたびにSQSが次のメッセージを自動的にプッシュする、プッシュ型のリアルタイム配信構成',
+      'D. SQSのFIFOキューによってProducerの送信順序が厳密に保証され、Lambda Consumerが同一メッセージを重複なく正確に1回だけ処理することが保証される構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】SQSキューを間に挟むことでProducerとConsumerを疎結合にし、処理速度の差異をキューが吸収するパターン。注文処理・メール送信・動画エンコードなど時間のかかる処理を非同期化する際に使う。\n\n【Bが違う理由】マルチリージョン配信にはSNS/S3レプリケーションが適切。\n【Cが違う理由】地理ルーティングにはRoute53のGeolocationルーティングポリシーが必要。\n【Dが違う理由】自動起動にはAuto Scaling/EC2 Launch Templateが必要。'
+    explanation: '【正解: A】Producer → SQS → Lambda Consumerという構成は、送信側と処理側の速度差をキューで吸収する非同期処理の典型です。ProducerはSQSにメッセージを入れるだけで処理完了を待たず、Lambda Consumerが自分のペースで処理します。\n\n【Bが違う理由】SQSはメッセージを一時的に保持するキューであり、ProducerがSQSにメッセージを送信した瞬間にLambdaが同期的にトリガーされる仕組みはありません。LambdaはSQSをポーリングして非同期に起動します。\n\n【Cが違う理由】LambdaとSQSの連携はLambdaがSQSをポーリングする「プル型」です。SQSがLambdaにメッセージをプッシュする仕組みは存在しません。図にも「メッセージポーリング」と明記されています。\n\n【Dが違う理由】SQS FIFOキューは順序保証と重複排除を提供しますが、この図がFIFOキューであるとは明示されていません。また、Lambdaの冪等性はアプリケーション側で担保する必要があり、SQSが自動保証するわけではありません。'
   },
   {
     id: 9,
@@ -189,13 +192,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. ユーザーリクエストに応答するリアルタイムAPIの提供',
+      'A. EventBridgeがLambdaの実行ログをS3/DynamoDBに定期的にエクスポートするログアーカイブ構成',
       'B. Cronライクなスケジュール実行による定期バッチ処理',
-      'C. 複数サービス間のオーケストレーション管理',
-      'D. VPN経由でのオンプレミス接続'
+      'C. EventBridge Schedulerが複数のLambdaを依存関係に従って順次呼び出し、ワークフロー全体の進捗をDynamoDBで管理するオーケストレーション構成',
+      'D. Lambdaがタイムアウトした場合にEventBridgeが自動的に再トリガーし、処理結果をS3に冪等に保存するリトライ構成'
     ],
     answer: 'B',
-    explanation: '【正解: B】EventBridgeのスケジューラーが指定時刻にLambdaを起動する定期バッチパターン。日次レポート生成・不要データのクリーンアップ・外部API定期取得などに使われる。\n\n【Aが違う理由】リアルタイムAPIにはAPI Gateway + Lambdaが必要。\n【Cが違う理由】複数ステップのオーケストレーションにはStep Functionsが適切。\n【Dが違う理由】オンプレミス接続にはDirect Connect/Site-to-Site VPNが必要。'
+    explanation: '【正解: B】EventBridge Schedulerのcron/rate式でLambdaを定期起動し、処理結果をS3やDynamoDBに保存する構成は、夜間バッチ・定期レポート生成・データ集計などに使われます。\n\n【Aが違う理由】CloudWatch LogsのS3エクスポートはCloudWatch Logs自身のエクスポート機能やKinesis Firehoseで行うものです。EventBridgeがLambdaの実行ログを直接S3にエクスポートする構成は存在しません。\n\n【Cが違う理由】複数Lambdaの依存関係管理やオーケストレーションにはAWS Step Functionsを使うのが適切です。EventBridge Schedulerは単一の宛先を指定してトリガーするものであり、ワークフロー全体の進捗管理機能はありません。\n\n【Dが違う理由】EventBridgeにはLambdaのタイムアウトを検知して自動再トリガーする機能はありません。Lambdaのリトライ制御はLambda側の設定で管理します。EventBridgeはあくまでスケジュールに基づいてトリガーを送るだけです。'
   },
   {
     id: 10,
@@ -210,13 +213,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. サーバーレスによるコスト最小化構成',
+      'A. Route 53のDNSフェイルオーバーがELBをプライマリ・セカンダリに振り分け、障害時にEC2ではなくS3の静的ページにフォールバックする静的フォールバック構成',
       'B. 複数AZへのトラフィック分散と冗長化による高可用性Webシステム',
-      'C. 単一EC2インスタンスへの専用線接続',
-      'D. S3バケットのバージョニングと静的ホスティング'
+      'C. ELBがEC2インスタンスごとにスティッキーセッションを有効化し、同一ユーザーのリクエストを常に同一EC2に固定することでRDSへの負荷を軽減する構成',
+      'D. Route 53の加重ルーティングでEC2-1に80%、EC2-2に15%、EC2-3に5%のトラフィックを割り当て、新バージョンのカナリアリリースを行う構成'
     ],
     answer: 'B',
-    explanation: '【正解: B】Route53でDNSフェイルオーバー → ELBが複数AZのEC2にトラフィックを分散させる高可用性構成。1台が落ちても他のEC2が処理を引き継ぎ、サービスが継続できる。\n\n【Aが違う理由】コスト最小化ならEC2ではなくLambda+DynamoDBのサーバーレス構成が適切。\n【Cが違う理由】専用線接続にはDirect Connectが必要。\n【Dが違う理由】S3静的ホスティングはEC2を使わない。'
+    explanation: '【正解: B】Route 53のDNSフェイルオーバー + ELB（ALB）によるトラフィック分散 + 複数AZへのEC2配置という構成は、単一障害点を排除し高可用性を実現するWebシステムの定石です。\n\n【Aが違う理由】Route 53のフェイルオーバールーティングでS3静的ページをセカンダリとして設定すること自体は実在するパターンですが、図にはS3が存在しません。図に描かれていないリソースを前提とした解釈は誤りです。\n\n【Cが違う理由】ELBのスティッキーセッションは実在する機能ですが、RDSへの負荷軽減を目的とするものではありません。この説明は機能の目的を誤って解釈しており、構成の主目的である高可用性・冗長化の説明としては不適切です。\n\n【Dが違う理由】加重ルーティングによるカナリアリリースはRoute 53の機能として存在しますが、それはDNSレベルの振り分けです。ELBが存在するこの構成ではELBがトラフィック分散を担っており、Route 53の役割はDNSフェイルオーバーです。'
   },
 
   // ============================================================
@@ -237,12 +240,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. セッション管理とDBキャッシュを備えたコンテナWebアプリの本番運用',
-      'B. 機械学習モデルのリアルタイム推論エンドポイント',
-      'C. 静的アセットのグローバルエッジ配信',
-      'D. IoTデバイスからの大量センサーデータ受信'
+      'B. ElastiCacheをメインDBとして使い、Auroraはバックアップ専用に割り当てたキャッシュファースト構成',
+      'C. ECS FargateがAuroraに直接書き込み、ElastiCacheはALBのセッションアフィニティ制御のみに使う構成',
+      'D. ALBのターゲットグループをElastiCacheに向け、RedisをHTTPレスポンスキャッシュとして直接公開する構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】ALBがトラフィックを分散 → ECS Fargateでコンテナを実行（サーバー管理不要）→ AuroraでDB → ElastiCacheでセッション/クエリキャッシュという「コンテナWebアプリの定番本番構成」。\n\n【Bが違う理由】ML推論にはSageMaker Endpointが必要。\n【Cが違う理由】エッジ配信にはCloudFront+S3が必要。\n【Dが違う理由】IoTデータ受信にはIoT Core/Kinesisが必要。'
+    explanation: '【正解: A】ALB→ECS Fargate（Webアプリ）→Aurora（永続化）＋ElastiCache（Redisによるセッション・クエリキャッシュ）という組み合わせは、コンテナWebアプリの典型的な本番構成です。\n\n【Bが違う理由】ElastiCacheはインメモリキャッシュであり、耐久性を持たないため永続的なメインDBには使えません。Auroraをバックアップ専用に格下げする設計は、この構成の意図と逆です。\n\n【Cが違う理由】ElastiCacheはセッションデータやクエリ結果のキャッシュに使われます。ALBのセッションアフィニティ（スティッキーセッション）はALB自体の機能であり、ElastiCacheとは独立しています。\n\n【Dが違う理由】ALBはHTTPターゲットとしてElastiCacheを直接指定できません。ElastiCacheはアプリケーション層（ECS）からアクセスするものであり、ALBのターゲットにはなれません。'
   },
   {
     id: 12,
@@ -261,12 +264,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. S3へのアップロードをトリガーにした画像自動分析・タグ付けパイプライン',
-      'B. ユーザーが手動でAIモデルを選択するMLプラットフォーム',
-      'C. 複数AZにまたがるRDSレプリカの自動フェイルオーバー',
-      'D. 動画ストリーミングのアダプティブビットレート変換'
+      'B. LambdaがRekognitionの分析結果をS3に上書き保存し、DynamoDBは変更履歴のバージョン管理に使う構成',
+      'C. S3イベントをトリガーにLambdaがRekognitionで分析し、結果をS3の元画像メタデータとして付与する構成',
+      'D. Rekognitionが直接S3をポーリングして画像を検出し、LambdaはDynamoDBへの書き込み専用に使う構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】S3アップロード → Lambda起動 → Rekognitionで顔認識・物体検出などのAI分析 → 結果をDynamoDBに保存する「自動画像分析パイプライン」。SNS画像モデレーション・ECサイトの自動タグ付けなどに使われる。\n\n【Bが違う理由】ユーザー操作型MLにはSageMaker Studioが適切。\n【Cが違う理由】RDSフェイルオーバーはRDS Multi-AZの機能であり、このサービス組み合わせとは別。\n【Dが違う理由】動画変換にはMediaConvertが必要。'
+    explanation: '【正解: A】S3アップロード→S3イベント→Lambda→Rekognition→DynamoDB（ラベル保存）という流れは、画像のアップロードを起点に自動でAI分析しタグをDBに保存するパイプラインです。\n\n【Bが違う理由】分析結果はDynamoDBに保存されています。結果をS3に上書きする設計ではなく、DynamoDBをバージョン管理に使うことも構成図から読み取れません。\n\n【Cが違う理由】S3オブジェクトメタデータへの付与もあり得る設計ですが、この構成図ではDynamoDBへの保存が明示されており、S3メタデータへの書き戻しは示されていません。\n\n【Dが違う理由】RekognitionはS3をポーリングする機能を持ちません。S3イベント→Lambdaという起動経路が正しく、RekognitionはLambdaから呼び出されるサービスです。'
   },
   {
     id: 13,
@@ -285,12 +288,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. レスポンスを即時返却し、重い処理を非同期で行うAPIパターン',
-      'B. 複数データベース間のリアルタイムデータ同期',
-      'C. ユーザー認証情報のキャッシュとセッション管理',
-      'D. ECSタスクの定期的なヘルスチェックと再起動'
+      'B. API Gatewayが202を返した後、SQSのFIFOキューがLambdaを順序保証付きで同期呼び出しする構成',
+      'C. SQSがデッドレターキューとして機能し、Lambdaの失敗時に自動でAPI Gatewayへ再送する構成',
+      'D. Lambdaがレスポンス完了後にSQSへメッセージを送り、API Gatewayはその結果をポーリングして返す構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】API Gatewayがリクエストを受け取ったらすぐに202を返し、実処理はSQS→Lambdaで非同期実行するパターン。動画エンコード・大量メール送信など時間のかかる処理でタイムアウトを回避できる。\n\n【Bが違う理由】DB間同期にはDMS（Database Migration Service）やGlueが適切。\n【Cが違う理由】セッション管理にはElastiCacheが適切。\n【Dが違う理由】ECSヘルスチェックはECSとALBのヘルスチェック機能で実現する。'
+    explanation: '【正解: A】API Gatewayが即座に202 Acceptedを返し、SQSにメッセージを積んでLambdaが非同期処理するパターンは、重い処理をクライアントの待機なしに実行する非同期APIの典型です。\n\n【Bが違う理由】SQSのFIFOキューを使っても、LambdaはSQSからのポーリングで非同期に起動されます。「SQSがLambdaを同期呼び出しする」という動作はSQSの仕様上ありません。\n\n【Cが違う理由】デッドレターキューはLambdaの処理失敗時に使われますが、API Gatewayへの再送という動作はありません。デッドレターキューはあくまでメッセージの退避場所です。\n\n【Dが違う理由】この構成ではSQSはAPI Gatewayの下流にあります。LambdaがSQSへ送り、API Gatewayがポーリングするという逆向きの流れは構成図と一致しません。'
   },
   {
     id: 14,
@@ -309,12 +312,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. SQLインジェクション・XSSなどの攻撃を防御するセキュアなWebアプリ',
-      'B. 複数AWSアカウントにまたがるコスト一元管理',
-      'C. オンプレミスからクラウドへのデータベース移行',
-      'D. 機械学習によるログ異常検知とアラート'
+      'B. CloudFrontがWAFルールを評価し、正常リクエストのみALBに転送するが、EC2への直接アクセスはWAFをバイパスできる構成',
+      'C. WAFをALBにアタッチすることでCloudFrontをバイパスした直接攻撃も防御でき、CloudFrontはキャッシュ専用として機能する構成',
+      'D. CloudFrontのオリジンをEC2に直接向けることで、ALBとWAFを経由せずに静的コンテンツを高速配信する構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】CloudFrontでエッジキャッシュ＋DDoS軽減 → WAFでSQLインジェクション・XSS・ボットなどの悪意あるリクエストをフィルタリング → ALBで分散 → EC2で処理する「WAF付きセキュアWebアプリ」の定番構成。\n\n【Bが違う理由】コスト管理にはAWS Organizations/Cost Explorerが必要。\n【Cが違う理由】DB移行にはDMS（Database Migration Service）が必要。\n【Dが違う理由】ログ異常検知にはCloudWatch Logs Insights/Security Hubが必要。'
+    explanation: '【正解: A】CloudFront→WAF→ALB→EC2という多層防御構成により、エッジでのWAFフィルタリングによってSQLインジェクションやXSSなどの攻撃を防ぎながらWebアプリを安全に提供します。\n\n【Bが違う理由】EC2へのセキュリティグループ設定でCloudFrontやALB以外からの直接アクセスをブロックするのが正しい設計です。「EC2への直接アクセスがバイパスできる」という説明は、構成図が意図するセキュリティ設計の不完全な理解です。\n\n【Cが違う理由】WAFをALBにアタッチする構成も有効ですが、この図ではWAFはCloudFrontの前段に配置されています。ALBに付けた場合、エッジでの遮断は失われます。\n\n【Dが違う理由】CloudFrontのオリジンをEC2に直接向けた場合、ALBとWAFが介在しないため攻撃防御層が失われます。構成図はALBとWAFを経由する設計になっています。'
   },
   {
     id: 15,
@@ -333,12 +336,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. ストリームデータをリアルタイム変換しS3に蓄積して分析するパイプライン',
-      'B. ユーザーのリアルタイムゲームスコアのランキング更新',
-      'C. マイクロサービス間のサービスメッシュ通信管理',
-      'D. EC2インスタンスのOSパッチ自動適用'
+      'B. KinesisがLambdaをリアルタイム起動して加工結果をS3に保存し、AthenaはS3のデータを直接更新・書き換えするクエリに使う構成',
+      'C. Lambdaがデータを変換してS3に保存した後、Athenaがリアルタイムにストリームを監視してクエリを自動実行する構成',
+      'D. S3をステージングエリアとして使い、Athenaがデータをポーリングしてリアルタイムダッシュボードに秒単位で反映する構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】Kinesisでリアルタイムストリーム受信 → Lambdaで変換・フィルタリング → S3にデータレイク構築 → AthenaでサーバーレスSQLクエリという「ストリーミング分析基盤」の基本パターン。クリックログ・IoTデータの分析に使われる。\n\n【Bが違う理由】ゲームランキングにはElastiCache（Redis Sorted Sets）が適切。\n【Cが違う理由】サービスメッシュにはApp Mesh/ECS Service Connectが必要。\n【Dが違う理由】OSパッチ適用にはSystems Manager Patch Managerが必要。'
+    explanation: '【正解: A】Kinesis Data Streams→Lambda（変換）→S3（蓄積）→Athena（分析）は、ストリームデータをリアルタイム変換しながらS3に貯め、後でアドホック分析する典型的なデータパイプラインです。\n\n【Bが違う理由】AthenaはS3上のデータに対してSQLでクエリを実行しますが、データを「更新・書き換え」する機能はありません。Athenaは読み取り専用のクエリエンジンです。\n\n【Cが違う理由】AthenaはS3のストリームをリアルタイム監視する機能を持ちません。クエリは手動またはスケジュール実行であり、イベント駆動での自動実行はAthena単体ではできません。\n\n【Dが違う理由】Athenaはサーバーレスなアドホッククエリサービスであり、秒単位のリアルタイムダッシュボードには不向きです。それにはKinesis Data AnalyticsやOpenSearch等が適しています。'
   },
   {
     id: 16,
@@ -356,12 +359,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 複数のLambda関数を順序付きで実行する複雑なワークフロー処理',
-      'B. 複数リージョンへの同時データ書き込み',
-      'C. WAFによるHTTPリクエストのレートリミット制御',
-      'D. EKSクラスターへの新バージョンアプリのローリングデプロイ'
+      'B. Step FunctionsがLambda A→B→Cを並列実行し、どれか1つが完了した時点でDynamoDBに成功状態を書き込む構成',
+      'C. Lambda Aが失敗した場合、Step Functionsが自動でLambda Cをスキップし、Lambda Bにフォールバックして処理を継続する構成',
+      'D. EventBridgeが定期的にStep Functionsを起動し、Lambda A・B・CがDynamoDBへ競合なく同時書き込みできるよう調停する構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】Step Functionsが複数のLambdaをオーケストレーションするワークフローパターン。各ステップの実行・失敗・リトライ・分岐を視覚的に管理でき、注文処理・ETL・承認フローなどの複雑な業務処理に使われる。\n\n【Bが違う理由】マルチリージョン書き込みにはDynamoDB Global TablesやS3レプリケーションが適切。\n【Cが違う理由】レートリミットにはAPI GatewayのUsage PlanやWAFが担当する。\n【Dが違う理由】EKSデプロイにはKubernetesのRollingUpdate戦略が使われる。'
+    explanation: '【正解: A】Step Functionsのステートマシンは複数のLambda関数を順序・条件・エラーハンドリングつきで管理するオーケストレーションサービスです。Lambda A（検証）→B（処理）→C（通知）という流れが典型的なワークフローです。\n\n【Bが違う理由】並列実行自体はStep Functionsで可能ですが、「どれか1つが完了した時点で成功とみなす」はRaceパターンであり、図の構成（A→B→Cの順序処理）とは異なります。\n\n【Cが違う理由】Step FunctionsはCatch/Retryによるエラーハンドリングが可能ですが、「失敗時にCをスキップしてBにフォールバック」という動作は、構成図の順序（A→B→C）と矛盾します。\n\n【Dが違う理由】DynamoDBはトランザクション機能を持ちますが、Step Functionsが「複数Lambdaの同時書き込みを調停する」という役割は持ちません。Step Functionsの役割はワークフローの制御であり、DB書き込みの調停ではありません。'
   },
   {
     id: 17,
@@ -379,12 +382,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. ECサイトの注文確定をトリガーに複数サービスが独立処理するマイクロサービス連携',
-      'B. 単一DBへの書き込みを複数リージョンにレプリケーション',
-      'C. 障害発生時の自動ロールバック処理',
-      'D. API Gatewayのスロットリング制御'
+      'B. SNS TopicがSQS A・B・Cに同じメッセージを届けるが、Lambda A・B・Cは同一の処理を冗長実行して結果を多数決で確定する構成',
+      'C. 注文サービスが直接Lambda A・B・Cを呼び出し、SQSは各Lambdaの処理結果を集約してSNSに通知するための応答キューとして機能する構成',
+      'D. SQS A・B・Cのいずれかが処理失敗した場合、SNS TopicがDead Letter Topicとして機能し、注文サービスへ失敗イベントを再送する構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】SNSが1つのイベントを複数のSQSに配信し、在庫更新・メール送信・分析記録が完全に独立して並行処理されるマイクロサービスファンアウトパターン。各サービスが疎結合になるためスケーリング・障害が互いに影響しない。\n\n【Bが違う理由】DBレプリケーションにはDynamoDB Global TablesやRDS Read Replicaが適切。\n【Cが違う理由】自動ロールバックにはCodeDeployやCloudFormationのロールバック機能が必要。\n【Dが違う理由】スロットリングはAPI GatewayのUsage Planで設定する。'
+    explanation: '【正解: A】SNS TopicへのPublishにより複数のSQSキューへファンアウトし、それぞれ独立したLambdaが在庫更新・メール送信・分析記録を担うパターンは、マイクロサービス間の疎結合連携の典型です。\n\n【Bが違う理由】SNSのファンアウトは各サブスクライバーが独立した処理をするためのものであり、同一処理を冗長実行して多数決で確定するという用途ではありません。\n\n【Cが違う理由】この構成では注文サービスはSNS Topicにのみ送信し、Lambda A・B・Cを直接呼び出しません。SQSは応答キューではなく、各Lambdaのトリガー兼バッファです。\n\n【Dが違う理由】SNS TopicはDead Letter Topicとして機能しません。SQSのデッドレターキューは処理失敗メッセージを退避する別のキューです。SNSへの再送という動作もSQSの標準機能にはありません。'
   },
   {
     id: 18,
@@ -403,12 +406,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. サーバーレスなデータETLとBIダッシュボードによるデータ分析基盤',
-      'B. マルチAZにわたるWebアプリの高可用性構成',
-      'C. S3バケットの不正アクセス検知とアラート',
-      'D. ECSコンテナイメージの脆弱性スキャン'
+      'B. GlueがS3とRDSを結合してリアルタイムにデータを変換し、QuickSightがAthenaを介さずGlueに直接接続してダッシュボードを更新する構成',
+      'C. AthenaがS3上の変換前データに直接クエリし、GlueはQuickSightへのデータ転送前処理としてのみ機能する構成',
+      'D. GlueのETL結果をRDSに書き戻し、AthenaがRDSをクエリ対象としてQuickSightにデータを渡す構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】Glueでデータ変換・クレンジング → S3にデータレイク → Athenaでサーバーレスクエリ → QuickSightでBI可視化という「AWSデータ分析基盤の定番スタック」。ETLサーバー不要でスケーラブルに大量データを分析できる。\n\n【Bが違う理由】高可用性Webアプリ構成にはALB+EC2+RDS Multi-AZが必要。\n【Cが違う理由】S3不正アクセス検知にはMacie/GuardDutyが必要。\n【Dが違う理由】コンテナ脆弱性スキャンにはECRのイメージスキャン機能やInspectorが必要。'
+    explanation: '【正解: A】データソース→Glue ETL（変換・クレンジング）→S3（変換後データ）→Athena（SQLクエリ）→QuickSight（ダッシュボード）という流れは、サーバーレスなデータ分析基盤の代表的な構成です。\n\n【Bが違う理由】GlueはバッチETLツールであり、リアルタイム変換には不向きです。またQuickSightはGlueに直接接続する機能を持たず、S3やAthena経由でデータを取得します。\n\n【Cが違う理由】この構成ではAthenaはGlue変換後のS3データをクエリします。変換前のデータに直接クエリすることも技術的には可能ですが、GlueのETL目的と矛盾し、構成図の流れとも異なります。\n\n【Dが違う理由】AthenaはRDSを直接クエリ対象にできません。AthenaはS3上のデータに対してクエリするサービスです。GlueのETL結果をRDSに書き戻す構成自体は可能ですが、この構成図の示す流れではありません。'
   },
   {
     id: 19,
@@ -427,12 +430,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. コードプッシュからコンテナデプロイまでを自動化するCI/CDパイプライン',
-      'B. オンプレミスサーバーからAWSへの大量データ移行',
-      'C. 複数AWSサービスのコスト最適化レコメンデーション',
-      'D. API Gatewayのカスタムドメイン設定とSSL証明書管理'
+      'B. CodeBuildがビルドとテストを同時並列実行し、ECRへの登録はテストとビルドの両方が成功した場合のみCodePipelineが承認する構成',
+      'C. ECRに登録されたコンテナイメージをCodePipelineが直接ECSに展開し、CodeBuildはビルドのみ担当してテストはECS上の本番環境で実施する構成',
+      'D. CodeCommitへのPushをトリガーにCodePipelineが起動するが、ECRへの登録前に手動承認ステージが必須となっている構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】コードPush → CodePipelineが自動起動 → CodeBuildでビルド・テスト → ECRにDockerイメージをPush → ECSに自動デプロイする「コンテナCI/CDパイプライン」の定番構成。\n\n【Bが違う理由】大量データ移行にはSnowball/DMSが必要。\n【Cが違う理由】コスト最適化にはCost Explorerや Compute Optimizerが必要。\n【Dが違う理由】ドメイン設定はAPI GatewayとACM（証明書）の設定で行う。'
+    explanation: '【正解: A】GitHub/CodeCommit→CodePipeline→CodeBuild（ビルド・テスト）→ECR（イメージ登録）→ECS（デプロイ）は、コンテナアプリのCI/CDパイプラインの標準的な構成です。\n\n【Bが違う理由】CodeBuildはビルドとテストを1つのビルドプロジェクト内で実行するのが一般的です。「並列実行で両方成功した場合のみ承認」という動作はCodePipelineの並列アクションで実現できますが、構成図にその明示はなく、標準的な解釈とは異なります。\n\n【Cが違う理由】本番ECS上でテストを実施するのはリスクが高く、一般的なCI/CDの原則に反します。CodeBuildがビルドとテストの両方を担い、問題がなければECRに登録するのが正しい流れです。\n\n【Dが違う理由】手動承認ステージはCodePipelineで追加可能ですが、構成図には記載されていません。構成図の示す流れはPushから自動でデプロイまで完結するパイプラインです。'
   },
   {
     id: 20,
@@ -451,12 +454,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 安定した高帯域幅でオンプレミスとAWSを繋ぐハイブリッドクラウド構成',
-      'B. 複数のAWSアカウントにまたがるVPCピアリング',
-      'C. Lambdaのデプロイパッケージ管理とバージョン管理',
-      'D. 外部SaaSサービスへのWebhook送信と応答処理'
+      'B. Direct ConnectがVirtual Private Gatewayを介さずVPCに直接接続し、EC2とRDSはパブリックサブネットに配置してオンプレミスからアクセスする構成',
+      'C. VPNとDirect Connectを併用することで冗長化し、Direct Connect障害時にVPNへ自動フェイルオーバーする構成',
+      'D. Direct ConnectをTransit Gatewayに接続して複数VPCへルーティングし、各VPCのEC2とRDSに同時アクセスする構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】Direct Connectで物理専用線を引き、インターネットを経由せずオンプレミスとVPCを接続するハイブリッドクラウド構成。高帯域・低レイテンシ・安定性が必要な基幹業務システム連携に使われる。\n\n【Bが違う理由】アカウント間VPCピアリングはVPC Peeringで設定する。Direct Connectとは別の機能。\n【Cが違う理由】Lambdaバージョン管理はLambda自体のバージョン・エイリアス機能で行う。\n【Dが違う理由】Webhook送信にはLambda+API Gatewayが使われる。'
+    explanation: '【正解: A】オンプレミス→Direct Connect（専用線）→Virtual Private Gateway→VPC（プライベートサブネット）→EC2＋RDSという構成は、安定した専用帯域でオンプレミスとAWSを繋ぐハイブリッドクラウドの典型です。\n\n【Bが違う理由】Direct ConnectはVirtual Private Gatewayを経由してVPCに接続するのが標準です。またEC2とRDSをパブリックサブネットに置くことはセキュリティ上の問題があり、構成図も「プライベートサブネット」と明示しています。\n\n【Cが違う理由】VPN冗長化構成は実際に推奨されるパターンですが、この構成図にはVPNの記載がありません。構成図から読み取れる接続方式はDirect Connect単独です。\n\n【Dが違う理由】Transit Gatewayを使った複数VPCへのルーティングは有効な構成ですが、この構成図にTransit Gatewayは登場しません。図ではVirtual Private Gatewayが単一VPCへの接続点として使われています。'
   },
   {
     id: 21,
@@ -470,13 +473,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. HTTP Polling による定期的なデータ更新確認',
+      'A. HTTP Pollingにより、クライアントが定期的にAPI Gatewayに問い合わせてDynamoDBの最新接続IDを取得しメッセージを確認する構成',
       'B. WebSocketを使ったリアルタイム双方向通信チャットシステム',
-      'C. 大量ファイルのS3へのマルチパートアップロード管理',
-      'D. RDSのリードレプリカへの読み取り負荷分散'
+      'C. API GatewayのWebSocket APIがクライアントの接続を受け付けた後、Lambdaが接続IDをDynamoDBに保存し、以降のメッセージ送信はLambdaを介さずAPI Gatewayが直接ルーティングする構成',
+      'D. DynamoDBのStreamsがLambdaをトリガーし、LambdaがAPI Gatewayを通じて接続中クライアントへメッセージをプッシュ配信する構成'
     ],
     answer: 'B',
-    explanation: '【正解: B】API Gateway WebSocket APIがクライアント間の持続的接続を管理 → Lambdaがメッセージをルーティング → DynamoDBで接続IDを管理してブロードキャストを実現するリアルタイムチャットパターン。\n\n【Aが違う理由】Pollingはクライアントが定期的にHTTPリクエストするだけで、WebSocket APIが不要。\n【Cが違う理由】マルチパートアップロードはS3の機能で管理され、このアーキテクチャとは無関係。\n【Dが違う理由】RDSレプリカ読み分けはRDS ProxyやアプリレベルのDNSで行う。'
+    explanation: '【正解: B】API GatewayのWebSocket APIを使い、接続IDをDynamoDBで管理することでクライアント間のリアルタイム双方向通信を実現するのがこの構成の本質です。チャットシステムの典型実装です。\n\n【Aが違う理由】HTTP Pollingは接続を維持せず定期的にリクエストを送る方式です。この構成図はWebSocket APIを使っており、接続を張り続けてサーバーからプッシュできる点が根本的に異なります。\n\n【Cが違う理由】WebSocket APIでのメッセージ送信はLambdaを介して処理されます。「以降のメッセージ送信でLambdaを介さない」という動作はこの構成では正確ではなく、Lambdaがルーティングロジックを担います。\n\n【Dが違う理由】DynamoDB Streamsを使ってLambdaをトリガーするパターンも技術的には可能ですが、この構成図にDynamoDB Streamsの記載はありません。DynamoDBは接続ID管理用であり、ストリーム起点の設計ではありません。'
   },
   {
     id: 22,
@@ -493,12 +496,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 受信メールを自動解析してワークフローを起動するメール処理システム',
-      'B. 大量のアウトバウンドメールをバルク送信するキャンペーンシステム',
-      'C. メールサーバーのSPAM自動フィルタリング',
-      'D. 社内グループウェアとのカレンダー同期処理'
+      'B. Lambdaがメールを解析した結果をSESのバウンス処理機能に渡し、不達メールをS3に自動アーカイブする構成',
+      'C. SESがS3に保存した受信メールをLambdaが解析し、解析結果を再びSESを通じてSMTPで転送・返信する構成',
+      'D. S3イベントがLambdaをトリガーするが、LambdaはメールをSESのテンプレート形式に変換してDynamoDBに格納する構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】SESがメールを受信 → S3にメール本文を保存 → Lambdaがその内容を解析して後続処理（Issueの自動作成・フォーム入力・DBへの登録など）を実行するメール受信処理パターン。\n\n【Bが違う理由】バルク送信にはSESの送信APIを使い、受信構成は不要。\n【Cが違う理由】SPAMフィルタリングはSES自体の機能、またはWorkMailが担当する。\n【Dが違う理由】カレンダー同期にはLambda+外部カレンダーAPIの組み合わせが使われ、SESは関係ない。'
+    explanation: '【正解: A】外部メール→SES（受信）→S3（メール本文保存）→S3イベント→Lambda（解析・処理）という流れは、受信メールをトリガーに自動ワークフローを起動するメール処理システムです。\n\n【Bが違う理由】SESのバウンス処理はメール送信時の不達通知に関する機能であり、受信メールの解析結果をバウンス処理に渡すという動作は構成図の意図と異なります。\n\n【Cが違う理由】LambdaがSESを呼び出してメールを転送・返信するパターンは技術的に可能ですが、この構成図にはその経路が示されていません。構成図の流れはSES→S3→Lambdaで完結しており、LambdaからSESへの逆向きの矢印はありません。\n\n【Dが違う理由】LambdaがSESのテンプレート形式に変換してDynamoDBに格納するという動作は構成図に示されていません。この構成図のLambdaの役割は「メール解析・処理」であり、DynamoDBへの書き込みも図には登場しません。'
   },
 
   // ============================================================
@@ -523,13 +526,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. スタートアップの素早いMVPリリース向けシンプル構成',
+      'A. CloudFrontとALBでHTTPSを終端し、EKS Podがステートレスに処理することで、RDS Auroraへの書き込みを排除してElastiCacheだけでデータを永続化するシステム',
       'B. 検索・キャッシュ・DBを備えた大規模Webシステムのコンテナ運用',
-      'C. サーバーレスバッチによる深夜のETL処理',
-      'D. 単一リージョン内のVPC間トラフィック暗号化'
+      'C. EKS PodがElastiCacheをプライマリDBとして使用し、OpenSearchはAuroraへの書き込みキューとして機能する非同期処理基盤',
+      'D. CloudFrontがオリジンとしてALBとOpenSearchの両方を直接参照し、Podを経由せずに全文検索結果をエッジキャッシュする構成'
     ],
     answer: 'B',
-    explanation: '【正解: B】CloudFrontでエッジ配信 → ALBで負荷分散 → EKSで大量のコンテナPodをオーケストレーション → Auroraで高可用性DB・ElastiCacheでキャッシュ・OpenSearchで全文検索という「大規模Webシステムの本格的なコンテナ運用構成」。\n\n【Aが違う理由】MVPならECS FargateやApp Runnerのような管理が簡単なサービスが適切。EKSは運用コストが高い。\n【Cが違う理由】サーバーレスETLにはGlue/Lambda/Step Functionsが適切。\n【Dが違う理由】VPC間暗号化にはPrivateLink/VPCピアリング+TLSが適切。'
+    explanation: '【正解: B】CloudFront→ALB→EKS Podという多層構成に、RDS Aurora（永続DB）・ElastiCache（キャッシュ）・OpenSearch（全文検索）の3つのデータストアを組み合わせた構成は、大規模WebシステムのコンテナベースPlatformの典型パターンです。\n\n【Aが違う理由】ElastiCacheはインメモリキャッシュであり永続ストレージではありません。RDS Auroraが構成図に明示されており、書き込みを排除するという解釈は構成図と矛盾します。\n\n【Cが違う理由】ElastiCacheはRedisベースのキャッシュ層であり、プライマリDBとして使用する設計ではありません。またOpenSearchはドキュメント検索エンジンであり、書き込みキューの役割はSQSやKinesisが担います。\n\n【Dが違う理由】CloudFrontはALBをオリジンとして参照し、ALBがPodへルーティングします。CloudFrontがOpenSearchを直接オリジンとして参照する構成ではなく、全文検索はPod経由で行われます。'
   },
   {
     id: 24,
@@ -549,13 +552,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. Fargateコンテナのオートスケーリングに基づく自動デプロイ',
+      'A. Kinesis FirehoseがS3に書き込む前にLambdaでリアルタイム変換し、変換済みデータをRedshiftではなくS3 Select経由でQuickSightが直接クエリするサーバーレス分析基盤',
       'B. ストリームデータを変換・蓄積してBIで分析するデータウェアハウス基盤',
-      'C. 複数アカウントにまたがるIAMロールの一元管理',
-      'D. CloudFrontのキャッシュ無効化を自動トリガーするデプロイ処理'
+      'C. LambdaがFirehoseのバッファリング間隔に関係なく即時にRedshiftへINSERTし、QuickSightはリアルタイムSPICEキャッシュなしでRedshiftを直接クエリする構成',
+      'D. データソースからFirehoseで受け取ったrawデータをS3に保存した後、LambdaではなくGlue ETLジョブが変換を担い、Redshiftのスペクトルでクエリすることでデータ移動を最小化する設計'
     ],
     answer: 'B',
-    explanation: '【正解: B】Kinesis Firehoseが準リアルタイムでS3にデータを蓄積 → Lambdaで変換してRedshiftに投入 → QuickSightでBIダッシュボードを構築する「フルマネージドDWH基盤」。大量のビジネスデータ分析に使われる。\n\n【Aが違う理由】コンテナオートスケーリングにはECS Auto ScalingとALBが担当する。\n【Cが違う理由】IAM一元管理にはAWS Organizations/SSO (IAM Identity Center)が必要。\n【Dが違う理由】CloudFrontキャッシュ無効化はCodePipelineのデプロイアクションやLambdaから直接CloudFront APIを呼ぶことで実現する。'
+    explanation: '【正解: B】Kinesis Firehoseでストリームデータを受信→S3にraw保存→Lambdaで変換→Redshiftにロード→QuickSightで可視化という流れは、ストリーミングデータをBIで分析するDWH基盤の典型構成です。\n\n【Aが違う理由】構成図にはRedshiftが明示されており、QuickSightがS3 Select経由で直接クエリする構成とは異なります。「Redshiftではなく」という前提が構成図と矛盾します。\n\n【Cが違う理由】FirehoseはバッファリングしてS3に書き込む設計であり、LambdaがFirehoseのバッファを無視して即時Redshiftへ書き込む動作はFirehoseの仕組みと一致しません。\n\n【Dが違う理由】構成図では変換はLambdaが担っており、GlueもRedshift Spectrumも登場しません。正しい構成要素を使いながら役割を入れ替えた誤った解釈です。'
   },
   {
     id: 25,
@@ -571,12 +574,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 複数VPC・オンプレ拠点をTransit Gatewayでハブアンドスポーク接続するネットワーク構成',
-      'B. マイクロサービスのサービスディスカバリーと負荷分散',
-      'C. RDSのバックアップを別リージョンに自動コピー',
-      'D. Kinesisストリームのシャードによるパーティションキーベースのデータ分散'
+      'B. Direct ConnectとSite-to-Site VPNをTransit Gatewayに集約し、VPC間はピアリングではなくTransit Gateway経由でフルメッシュ接続を実現する高可用ネットワーク設計',
+      'C. 拠点AはDirect Connectで低レイテンシ接続し、拠点BはSite-to-Site VPNをプライマリ経路として使用するが、Transit GatewayはVPC間ではなく拠点間のルーティングのみを担う構成',
+      'D. Transit GatewayをAWS側のハブとして使用しつつ、本番・開発・共有の各VPCはそれぞれ独立したInternet Gatewayを持ち、オンプレとの通信のみTransit Gateway経由にセグメント化した設計'
     ],
     answer: 'A',
-    explanation: '【正解: A】Transit Gatewayが「ネットワークハブ」として機能し、Direct Connect・VPN・複数VPCを1か所で相互接続するハブアンドスポーク構成。多アカウント・多拠点環境のネットワーク管理を大幅に簡略化できる。\n\n【Bが違う理由】サービスディスカバリーにはCloud Map/ECS Service Discovery/App Meshが使われる。\n【Cが違う理由】クロスリージョンバックアップはRDS自動バックアップのクロスリージョンコピー機能で実現する。\n【Dが違う理由】KinesisシャードはKinesis内部の概念で、このネットワーク図とは無関係。'
+    explanation: '【正解: A】Transit Gatewayをハブとして、Direct Connect（拠点A）・Site-to-Site VPN（拠点B）・複数VPC（本番/開発/共有）をスポークとして接続するハブアンドスポーク型ネットワーク構成です。\n\n【Bが違う理由】VPC間通信はTransit Gateway経由で行われますが、これは「フルメッシュ」ではなくハブアンドスポーク型です。フルメッシュはVPCピアリングの形態であり、Transit Gatewayの利点はその管理を不要にすることです。\n\n【Cが違う理由】Transit GatewayはVPC間のルーティングも担います。「拠点間のルーティングのみ」という限定的な解釈は誤りです。\n\n【Dが違う理由】構成図にはInternet Gatewayの記載はなく、オンプレ接続に特化した構成として読むべきです。Transit Gatewayの役割を「オンプレとの通信のみ」に限定する解釈は誤りです。'
   },
   {
     id: 26,
@@ -595,12 +598,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 失敗したメッセージをDLQに退避する信頼性の高いイベント駆動ワークフロー',
-      'B. 単純なCRUD操作のみを提供するREST API',
-      'C. ALBのターゲットグループを使ったA/Bテスト',
-      'D. ElastiCacheのクラスターノード追加による読み取りスケールアウト'
+      'B. Step FunctionsのエラーハンドリングがDLQへの退避を直接制御するが、SNSは通知のみに使用されるため、DLQ内のメッセージの再処理トリガーはEventBridgeが担う設計',
+      'C. EventBridgeのルールに合致したイベントはStep Functionsを経由せず直接Lambda群へ並列ディスパッチされ、Step Functionsは失敗時のDLQ管理とSNS通知のみを担う構成',
+      'D. SQSがLambda後続処理のトリガーとなるが、DLQへの退避はStep FunctionsのエラーハンドリングではなくSQSの可視性タイムアウト超過によって自動的に行われる設計'
     ],
     answer: 'A',
-    explanation: '【正解: A】Step FunctionsがLambdaのオーケストレーションと例外処理を担当 → 失敗時はSNSで通知+DLQにメッセージを退避することで、処理失敗したメッセージを後から再処理できる高信頼ワークフロー。金融・医療など失敗が許されないシステムに適している。\n\n【Bが違う理由】シンプルなCRUD APIにStep FunctionsやDLQは過剰。API Gateway+Lambdaで十分。\n【Cが違う理由】A/BテストにはALBの重み付けルーティングやCloudFrontのオリジングループが使われる。\n【Dが違う理由】ElastiCacheのスケールアウトはCluster Modeの設定変更で行う。'
+    explanation: '【正解: A】EventBridgeがトリガーとなりStep Functionsがオーケストレーションを担い、成功時はLambda→SQS→Lambda後続処理へ、失敗時はSNSで通知しDLQに退避する、信頼性の高いイベント駆動ワークフローです。\n\n【Bが違う理由】DLQ内メッセージの再処理トリガーをEventBridgeが担うという記述は構成図に根拠がありません。また「Step FunctionsがDLQへの退避を直接制御する」という表現も、実際にはSNS→DLQという流れを正確に表していません。\n\n【Cが違う理由】構成図ではEventBridgeはStep Functionsをトリガーしており、Lambda群へ直接ディスパッチする構成ではありません。Step Functionsがオーケストレーションの中心です。\n\n【Dが違う理由】DLQへの退避はStep Functionsのエラーハンドリング（Catch/Retry）によって制御されており、SQSの可視性タイムアウト超過による自動退避とは異なるメカニズムです。'
   },
   {
     id: 27,
@@ -620,12 +623,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. S3内の機密情報漏洩を自動検知して通知・隔離するセキュリティ監視システム',
-      'B. EBSボリュームの暗号化キーを定期ローテーションする処理',
-      'C. RDSの負荷をProxyで軽減しコネクションプールを管理する構成',
-      'D. CloudTrailのログをS3に集約してコスト分析する基盤'
+      'B. MacieがS3をスキャンしてFindings（検出結果）をSecurity Hubに送信するが、EventBridgeはLambdaのみをトリガーし、SNSへの通知はLambdaが担ってセキュリティ担当者へ直接連絡する構成',
+      'C. Security Hubがすべての検出結果を集約してEventBridgeにルーティングするが、自動隔離はLambdaではなくSecurity Hubのカスタムアクションによって直接実行される設計',
+      'D. MacieによるS3スキャンは定期実行ではなくEventBridgeのスケジュールが起動するオンデマンド方式であり、Security HubはFindings集約ではなくLambdaの実行ログ監査のみを担う構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】MacieがS3内のクレジットカード番号・個人情報などを機械学習で自動検出 → Security Hubに集約 → EventBridgeでルール評価 → Lambdaで自動隔離・SNSで担当者通知という「セキュリティ自動対応（SOAR）」パターン。\n\n【Bが違う理由】KMSキーのローテーションはKMSの自動ローテーション設定で行う。\n【Cが違う理由】コネクションプール管理にはRDS Proxyが必要。\n【Dが違う理由】CloudTrailログ分析にはAthena/CloudWatch Logs Insightsが適切。'
+    explanation: '【正解: A】MacieがS3を継続スキャン→Security HubにFindings集約→EventBridgeがルール評価→Lambdaで自動隔離＋SNSでセキュリティ担当者へ通知という、機密情報漏洩の自動検知・対応システムです。\n\n【Bが違う理由】構成図ではEventBridgeはLambdaとSNSの両方をトリガーしています。「SNSへの通知はLambdaが担う」という解釈は構成図と異なります。EventBridgeが直接SNSをターゲットとして呼び出す構成です。\n\n【Cが違う理由】Security Hubのカスタムアクションは隔離処理を直接実行する機能ではありません。自動隔離はEventBridgeがLambdaをトリガーすることで実現されます。Security Hubはあくまで集約・可視化の役割です。\n\n【Dが違う理由】MacieはS3バケットを継続的にスキャンする設計であり（構成図にも「継続的スキャン」と明記）、EventBridgeがオンデマンドでスキャンを起動する構成ではありません。またSecurity Hubの役割はFindings集約であり、Lambda実行ログ監査ではありません。'
   },
   {
     id: 28,
@@ -640,13 +643,13 @@ const QUESTIONS = [
 `,
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
-      'A. シングルAZのRDSインスタンスに対する定期スナップショット取得',
+      'A. Route 53のヘルスチェックでリージョンAの障害を検知してDNSをリージョンBに切り替えるが、AuroraのSecondaryはフェイルオーバー後も読み取り専用のままで、書き込みはアプリケーション側での手動昇格が必要な設計',
       'B. 複数リージョンにまたがるAuroraのグローバルフェイルオーバーによる高可用性システム',
-      'C. EKSのPodに対するカスタムオートスケーリングポリシーの設定',
-      'D. API GatewayのエンドポイントタイプをRegionalからEdgeへ変更する処理'
+      'C. CloudFrontが両リージョンのALBをオリジンとしてアクティブ-アクティブで同時参照するため、Aurora Primary/Secondaryへの書き込みが両リージョンで同時発生し、競合はAurora Globalのレプリケーション機能で吸収される構成',
+      'D. フェイルオーバー検知はRoute 53ヘルスチェックではなくAurora Global Databaseの自動フェイルオーバー機能が主体であり、Route 53はDNS切り替えではなくCloudFrontのオリジン選択のルーティングポリシーとしてのみ機能する設計'
     ],
     answer: 'B',
-    explanation: '【正解: B】Aurora Global Databaseが複数リージョンにレプリカを持ち、プライマリリージョン障害時にRoute53のフェイルオーバーが自動DNS切り替え → CloudFrontが切り替え後のリージョンにルーティングするグローバル高可用性パターン。RPO=0秒・RTO=数分を実現できる。\n\n【Aが違う理由】単一AZのスナップショット取得はRDSの自動バックアップ機能で設定できる。このマルチリージョン構成とは無関係。\n【Cが違う理由】EKSオートスケーリングにはHPA/VPA/Cluster Autoscalerが使われる。\n【Dが違う理由】API Gatewayエンドポイントタイプの変更はマネジメントコンソール/CLI/CDKで直接変更できる。'
+    explanation: '【正解: B】リージョンAにAurora Primary（書き込み）、リージョンBにAurora Secondary（読み取り）を配置し、Route 53ヘルスチェックで障害を検知してDNS切り替えを行い、CloudFrontが両リージョンのALBをオリジンとして高可用性を実現するAurora Global Databaseの典型構成です。\n\n【Aが違う理由】Aurora Global Databaseのフェイルオーバーでは、SecondaryリージョンのAuroraをPromote（昇格）させることで新たなPrimaryとして書き込みが可能になります。「手動昇格が必要」という記述は誤りであり、マネージドなフェイルオーバーが実現されます。\n\n【Cが違う理由】Aurora GlobalはリージョンAへの書き込みをリージョンBへ非同期レプリケーションする設計であり、両リージョンへの同時書き込みは想定されていません。アクティブ-アクティブな書き込みはAuroraの設計原則と一致しません。\n\n【Dが違う理由】Route 53ヘルスチェックはフェイルオーバー検知の重要な役割を担っており、「CloudFrontのオリジン選択のみ」という限定的な解釈は誤りです。Aurora Global Databaseの自動フェイルオーバーとRoute 53のDNS切り替えは補完的に機能します。'
   },
   {
     id: 29,
@@ -667,12 +670,12 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. ダウンタイムなしで新旧バージョンを並行稼働しながら安全にデプロイするCI/CD構成',
-      'B. CloudFrontのディストリビューションを別リージョンに複製するDR設計',
-      'C. EBSスナップショットのクロスアカウントコピーと復元テスト',
-      'D. Lambdaのコールドスタートを防ぐためのプロビジョニング済み同時実行の設定'
+      'B. CodeDeployがECSのBlue/Greenデプロイを管理するが、ALBターゲットグループの切り替えはCodePipelineの承認アクションが必要であり、100%切り替え前にCodeBuildが自動E2Eテストを再実行してからトラフィックを移行する設計',
+      'C. RDS Multi-AZはBlue環境のみに接続され、Greenへの切り替え完了後にRDSのエンドポイントもCodeDeployが自動的に書き換えるため、Blue/Green切り替えとDBフェイルオーバーが同時に行われる構成',
+      'D. Blue/Greenデプロイ中はALBが両ターゲットグループに重み付きルーティング（例: Green 10%→50%→100%）でトラフィックを段階的に移行するカナリアリリース方式であり、CodeDeployは切り替え比率の制御のみを担う設計'
     ],
     answer: 'A',
-    explanation: '【正解: A】Blue/Greenデプロイでは旧バージョン(Blue)を稼働させつつ新バージョン(Green)を別ターゲットグループに展開 → テスト後に100%トラフィックをGreenに切り替え → 問題あればBlueに即ロールバックできる「ゼロダウンタイムデプロイ」パターン。RDS Multi-AZがDB高可用性を担保する。\n\n【Bが違う理由】CloudFrontのDR設計はRoute53フェイルオーバー+オリジン冗長化で実現する。\n【Cが違う理由】EBSスナップショットのクロスアカウントコピーはData Lifecycle Manager/スナップショットの共有設定で行う。\n【Dが違う理由】Lambda Provisioned Concurrencyはマネジメントコンソールや設定ファイルで指定できる。'
+    explanation: '【正解: A】CodePipeline→CodeBuild（テスト・ビルド）→CodeDeploy（ECS Blue/Greenデプロイ）という流れで、ALBのターゲットグループをBlue/Greenで並行稼働させ、検証後に100%切り替えることでダウンタイムなしのデプロイを実現するCI/CD構成です。\n\n【Bが違う理由】構成図にはCodePipelineの承認アクションやCodeBuildの再実行は記載されていません。また「ALBターゲットグループの切り替えにCodePipelineの承認が必要」という記述はBlue/Greenデプロイの標準的な仕組みと一致しません。CodeDeployが切り替えを制御します。\n\n【Cが違う理由】RDS Multi-AZはBlue/Green切り替えとは独立したDB可用性の仕組みです。CodeDeployがRDSエンドポイントを書き換えたり、Blue/Green切り替えとDBフェイルオーバーが同時発生する設計ではありません。\n\n【Dが違う理由】構成図は「検証OK後100%切り替え」と明示されており、段階的な重み付きルーティングのカナリアリリース方式とは異なります。カナリアとBlue/Greenは別のデプロイ戦略です。'
   },
   {
     id: 30,
@@ -696,11 +699,11 @@ const QUESTIONS = [
     question: 'この構成図のユースケースとして最も適切なものはどれか？',
     choices: [
       'A. 工場・スマートホームなどのIoTセンサーデータを収集・分析するIoTデータ基盤',
-      'B. スマートフォンアプリのプッシュ通知をグローバルに一斉配信するシステム',
-      'C. SaaSアプリのマルチテナント分離とIAMポリシーの動的制御',
-      'D. 複数AWSアカウント間のコスト按分レポートを自動生成する仕組み'
+      'B. IoT CoreのルールエンジンがKinesisを経由せず直接LambdaとDynamoDBに書き込み、KinesisはS3への長期保存のバッファリングとTimestreamへのバルクロードのみを担う、低レイテンシ優先のIoT処理構成',
+      'C. LambdaがKinesisからデータを受け取って異常検知を行い、正常データはTimestreamに、異常データはDynamoDBにアラートとして書き込むが、S3への保存はGrafanaがエクスポートするレポートデータのみに限定される設計',
+      'D. IoT CoreがMQTTメッセージをKinesisに送信した後、LambdaはDynamoDBとS3への書き込みのみを担い、TimestreamへのデータロードはKinesis Data FirehoseがLambdaを経由せず直接実行するパイプライン構成'
     ],
     answer: 'A',
-    explanation: '【正解: A】IoT CoreがMQTTデバイスを管理 → Kinesisでリアルタイム受信 → Lambdaで変換・異常検知 → DynamoDBで最新状態管理 → S3に長期蓄積 → Timestreamで時系列データ管理 → Grafanaで可視化という「フルスタックIoTデータ基盤」。スマートファクトリー・ビル管理・農業IoTなどに使われる。\n\n【Bが違う理由】プッシュ通知にはSNS (モバイルプッシュ) やPinpointが必要。IoT Coreは不要。\n【Cが違う理由】マルチテナント分離にはCognito/IAMロール/リソースベースポリシーが使われ、IoT Coreとは無関係。\n【Dが違う理由】コスト按分レポートにはCost ExplorerやAWS Cost and Usage Reportが必要。'
+    explanation: '【正解: A】IoTデバイス群がMQTTでIoT Coreにデータ送信→Kinesis Data Streamsで大量データを受信→Lambdaで変換・異常検知→DynamoDB（最新値・アラート）＋S3（長期保存）→Timestream（時系列DB）→Grafana（可視化）という、IoTセンサーデータの収集・分析基盤の典型構成です。\n\n【Bが違う理由】構成図ではIoT CoreはKinesis Data Streamsを経由してLambdaへ接続されており、IoT CoreのルールエンジンがKinesisを経由せず直接LambdaやDynamoDBに書き込む構成ではありません。\n\n【Cが違う理由】構成図ではLambdaがDynamoDBとS3の両方への書き込みを担っており、「S3への保存はGrafanaのエクスポートのみ」という解釈は誤りです。またGrafanaはTimestreamのデータを可視化するツールであり、S3へのエクスポートを主な役割としません。\n\n【Dが違う理由】構成図ではTimestreamへのデータロードはLambdaが行う流れであり、Kinesis Data Firehoseは登場しません。KinesisはData Streams（ストリーミング処理）として使用されており、FirehoseとStreamsは異なるサービスです。'
   }
 ];
